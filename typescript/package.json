@@ -8,5 +8,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/signale": "^1.4.7",
+    "signale": "^1.4.0"
   }
 }

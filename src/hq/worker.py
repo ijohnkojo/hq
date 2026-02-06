@@ -10,6 +10,7 @@ import typing as tp
 
 from hq.base import HQBaseConnection
 from hq.util import deserialize_obj, serialize_obj
+from hq.types import TaskInfo
 
 
 # client extends with `fetch`
@@ -78,14 +79,23 @@ def _process_loop(worker: HQWorker) -> None:
             ids = ids_and_payloads["taskIds"]
             payloads = ids_and_payloads["payloads"]
             for task_id, payload in zip(ids, payloads):
+                start = time.time()
                 try:
                     result = worker._process_task(payload=payload)
                     status = "success"
-                    info = None
+                    info = TaskInfo(
+                        workerId=worker.worker_id,
+                        runtime=time.time() - start,
+                        extra=None,
+                    )
                 except BaseException as error:
                     result = error
                     status = "error"
-                    info = serialize_obj(error)
+                    info = TaskInfo(
+                        workerId=worker.worker_id,
+                        runtime=time.time() - start,
+                        extra=serialize_obj(error),
+                    )
 
                 # log the result
                 if result is not None:
@@ -100,6 +110,7 @@ def _process_loop(worker: HQWorker) -> None:
                     f"{worker.url}/tasks/status/{task_id}", json=status_body
                 )
                 response.raise_for_status()
+
         # let the server breathe
         time.sleep(1)
 
@@ -118,10 +129,16 @@ services: dict[str, tp.Callable[[HQWorker], None]] = {
 
 
 def run(worker: HQWorker) -> None:
+    service_procs = []
     for name, service in services.items():
-        service_p = multiprocessing.Process(
-            name=name,
-            target=service,
-            args=(worker,),
+        service_procs.append(
+            multiprocessing.Process(
+                name=name, target=service, args=(worker,), daemon=True
+            )
         )
-        service_p.start()
+
+    for p in service_procs:
+        p.start()
+
+    for p in service_procs:
+        p.join()

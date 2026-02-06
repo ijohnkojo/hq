@@ -5,24 +5,7 @@ import typing as tp
 
 from hq.base import HQBaseConnection
 from hq.util import serialize_obj, deserialize_obj
-
-TaskID: tp.TypeAlias = int
-
-
-class AddTaskDict(tp.TypedDict):
-    task: str
-    heavyKey: str | None
-
-
-class TaskStatus(tp.TypedDict):
-    status: (
-        tp.Literal["success"]
-        | tp.Literal["running"]
-        | tp.Literal["error"]
-        | tp.Literal["queued"]
-        | tp.Literal["lost"]
-    )
-    info: tp.Any  # additional info, e.g. path to log file / error
+from hq.types import TaskID, TaskStatus, AddTaskDict, TaskInfo
 
 
 # client extends with `submit` and `map`
@@ -80,6 +63,13 @@ class HQClient(HQBaseConnection):
 
         # else return status, the type is given by the server implementation (we can trust it)
         body = response.json()
-        return TaskStatus(
-            {"status": body["status"], "info": deserialize_obj(body["info"])}
+        status = body["status"]
+        info = body["info"]
+        interpreted_info = TaskInfo(
+            {
+                "workerId": info["workerId"],
+                "runtime": info["runtime"],
+                "extra": deserialize_obj(info["extra"]),
+            }
         )
+        return TaskStatus({"status": status, "info": interpreted_info})
