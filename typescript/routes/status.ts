@@ -1,7 +1,7 @@
 import type { BunRequest } from "bun";
 import type { ServerState } from "../state";
 import { signale } from "../util";
-import { readParam } from "./http";
+import { badRequest } from "./http";
 
 export function buildStatusRoutes(state: ServerState) {
   const [, , workers] = state;
@@ -9,9 +9,9 @@ export function buildStatusRoutes(state: ServerState) {
   return {
     "/status": new Response("OK"),
     "/status/:workerId": async (req: BunRequest) => {
-      const workerId = readParam(req, "workerId");
-      if (workerId instanceof Response) {
-        return workerId;
+      const workerId = req.params.workerId;
+      if (workerId === undefined) {
+        return badRequest("Invalid workerId");
       }
 
       signale.info(`Received heartbeat from worker ${workerId}`);

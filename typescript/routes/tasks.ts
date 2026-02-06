@@ -1,7 +1,7 @@
 import type { BunRequest } from "bun";
 import type { Payload, ServerState, TaskInfo, TaskStatus } from "../state";
 import { signale } from "../util";
-import { badRequest, readParam, readPositiveIntParam } from "./http";
+import { badRequest } from "./http";
 import type { AddTaskReq, UpdateTaskStatusReq } from "./types";
 
 function unknownTaskInfo(workerId: string | null): TaskInfo {
@@ -98,14 +98,14 @@ export function buildTaskRoutes(state: ServerState) {
       },
     },
     "/tasks/fetch/:workerId/:n": async (req: BunRequest) => {
-      const workerId = readParam(req, "workerId");
-      if (workerId instanceof Response) {
-        return workerId;
+      const workerId = req.params.workerId;
+      if (workerId === undefined) {
+        return badRequest("Invalid workerId");
       }
 
-      const requestedCount = readPositiveIntParam(req, "n");
-      if (requestedCount instanceof Response) {
-        return requestedCount;
+      const requestedCount = Number(req.params.n);
+      if (!Number.isInteger(requestedCount) || requestedCount < 0) {
+        return badRequest(`Invalid 'n', got ${requestedCount}`);
       }
 
       const payloads: Payload[] = [];
@@ -131,10 +131,11 @@ export function buildTaskRoutes(state: ServerState) {
     },
     "/tasks/status/:taskId": {
       GET: async (req: BunRequest) => {
-        const id = readPositiveIntParam(req, "taskId");
-        if (id instanceof Response) {
-          return id;
+        const id = Number(req.params.taskId);
+        if (!Number.isInteger(id) || id < 0) {
+          return badRequest(`Invalid 'taskId', got ${id}`);
         }
+
         const taskStatus = tasks.status.get(id);
         if (taskStatus) {
           return Response.json({
@@ -145,9 +146,9 @@ export function buildTaskRoutes(state: ServerState) {
         return badRequest(`Task ${id} doesn't exist, can't query its status`);
       },
       POST: async (req: BunRequest) => {
-        const id = readPositiveIntParam(req, "taskId");
-        if (id instanceof Response) {
-          return id;
+        const id = Number(req.params.taskId);
+        if (!Number.isInteger(id) || id < 0) {
+          return badRequest(`Invalid 'taskId', got ${id}`);
         }
 
         const taskStatusUpdate = (await req.json()) as UpdateTaskStatusReq;

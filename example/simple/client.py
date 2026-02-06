@@ -3,7 +3,7 @@ from hq.client import HQClient
 
 
 def my_function() -> str:
-    time.sleep(1)
+    time.sleep(0.5)
     return "Hello, World!"
 
 
