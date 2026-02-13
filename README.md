@@ -11,7 +11,7 @@ The server internally holds a queue of those tasks and allows workers to fetch t
 
 The HTTP server can be viewed as a very simplified message queue (like RabbitMQ).
 
-## Setup in 3 steps:
+## Setup:
 
 Uses [`bun`](https://bun.com) and [`uv`](https://docs.astral.sh/uv/).
 
@@ -21,19 +21,19 @@ Uses [`bun`](https://bun.com) and [`uv`](https://docs.astral.sh/uv/).
 redis-server --port 6379
 ```
 
-1. start the queue server with `bun`:
+2. start the queue server with `bun`:
 
 ```shell
 bun run typescript/server.ts
 ```
 
-2. submit some tasks with `uv`:
+3. submit some tasks with `uv`:
 
 ```shell
 uv run example/simple/client.py
 ```
 
-3. start a worker to consume those tasks with `uv`:
+4. start one or more workers to consume those tasks with `uv`:
 
 ```shell
 uv run example/simple/worker.py
