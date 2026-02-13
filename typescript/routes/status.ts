@@ -7,7 +7,7 @@ export function buildStatusRoutes(redisClient: RedisClient) {
     "/status": new Response("OK"),
     "/status/:workerId": async (req: BunRequest) => {
       const workerId = req.params.workerId;
-      if (workerId === undefined) {
+      if (workerId === undefined || workerId.trim().length === 0) {
         return badRequest("Invalid workerId");
       }
 

@@ -2,6 +2,7 @@ import type { TaskStatus } from "../state";
 
 export type AddTaskReq = {
   task: string;
+  queue: string;
   heavyKey: string | null;
 };
 

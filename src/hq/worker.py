@@ -14,7 +14,7 @@ from hq.util import deserialize_obj
 
 # client extends with `fetch`
 class HQWorker(HQBaseConnection):
-    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks")
+    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue")
 
     def __init__(
         self,
@@ -24,15 +24,21 @@ class HQWorker(HQBaseConnection):
         worker_id: str | None = None,
         # number of tasks to fetch in a single API request
         fetch_n_tasks: int = 1,
+        queue: str = "default",
     ) -> None:
         super().__init__(host, port)
         if worker_id is None:
             self.worker_id = f"{socket.gethostname()}-{os.getpid()}"
         else:
+            if len(worker_id.strip()) == 0:
+                raise ValueError(f"{worker_id=} can't be empty")
             self.worker_id = worker_id
         if fetch_n_tasks < 1:
             raise ValueError(f"{fetch_n_tasks=} needs to be larger than zero")
         self.fetch_n_tasks = fetch_n_tasks
+        if len(queue.strip()) == 0:
+            raise ValueError(f"{queue=} can't be empty")
+        self.queue = queue
 
     def heartbeat(self) -> None:
         response = requests.get(f"{self.url}/status/{self.worker_id}")
@@ -40,7 +46,7 @@ class HQWorker(HQBaseConnection):
 
     def _fetch_tasks(self) -> dict:
         response = requests.get(
-            f"{self.url}/tasks/fetch/{self.worker_id}/{self.fetch_n_tasks}"
+            f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}"
         )
         response.raise_for_status()
         # pairs of taskIds and task+heavy buf [[], ...]

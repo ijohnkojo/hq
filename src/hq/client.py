@@ -10,10 +10,10 @@ from hq.types import TaskID, TaskStatus, AddTaskDict
 
 # client extends with `submit` and `map`
 class HQClient(HQBaseConnection):
-    def submit(self, fun: tp.Callable[[], tp.Any]) -> TaskID:
+    def submit(self, fun: tp.Callable[[], tp.Any], *, queue: str = "default") -> TaskID:
         task = serialize_obj(fun)
 
-        body = [AddTaskDict({"task": task, "heavyKey": None})]
+        body = [AddTaskDict({"task": task, "queue": queue, "heavyKey": None})]
 
         response = requests.post(f"{self.url}/tasks", json=body)
         if response.status_code != 200:
@@ -29,6 +29,7 @@ class HQClient(HQBaseConnection):
         args: tp.Iterable[tp.Any],
         *,
         fun_name: str | None = None,
+        queue: str = "default",
     ) -> tp.List[TaskID]:
         # First we serialize the fun and send it as the 'heavy' payload once
         # Then, we distribute the args each with a pointer to the heavy payload
@@ -37,14 +38,20 @@ class HQClient(HQBaseConnection):
         heavy = serialize_obj(fun)
         # is this sufficient/ok to use `id`?
         heavy_key = str(fun_name or id(fun))
-        body = AddTaskDict({"task": heavy, "heavyKey": heavy_key})
+        body = {"task": heavy, "heavyKey": heavy_key}
         response = requests.post(f"{self.url}/heavy", json=body)
         if response.status_code != 200:
             raise Exception(f"Failed to pre-submit {fun}, got {response.status_code}")
 
         # submit tasks
         body = [
-            AddTaskDict({"task": serialize_obj(arg), "heavyKey": heavy_key})
+            AddTaskDict(
+                {
+                    "task": serialize_obj(arg),
+                    "queue": queue,
+                    "heavyKey": heavy_key,
+                }
+            )
             for arg in args
         ]
         response = requests.post(f"{self.url}/tasks", json=body)
@@ -78,6 +85,7 @@ class HQClient(HQBaseConnection):
                 {
                     "status": status,
                     "workerId": item["workerId"],
+                    "queue": item["queue"],
                     "info": item["info"],
                 }
             )

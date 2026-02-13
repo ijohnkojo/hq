@@ -9,6 +9,7 @@ TaskID: tp.TypeAlias = int
 
 class AddTaskDict(tp.TypedDict):
     task: str
+    queue: str
     heavyKey: str | None
 
 
@@ -21,4 +22,5 @@ class TaskStatus(tp.TypedDict):
         | tp.Literal["lost"]
     )
     workerId: str | None
+    queue: str | None
     info: dict[str, tp.Any] | None
