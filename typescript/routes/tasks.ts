@@ -1,6 +1,6 @@
 import { RedisClient, type BunRequest } from "bun";
 import type { Payload, TaskStatus } from "../state";
-import { signale } from "../util";
+import { checkNonEmptyString, signale } from "../util";
 import { badRequest } from "./http";
 import type {
   AddTaskReq,
@@ -108,13 +108,10 @@ export function buildTaskRoutes(redisClient: RedisClient) {
         const jsons = (await req.json()) as AddTaskReq[];
         const taskIds: number[] = [];
         for (const json of jsons) {
-          if (
-            typeof json.queue !== "string" ||
-            json.queue.trim().length === 0
-          ) {
+          if (!checkNonEmptyString(json.queue)) {
             return badRequest("Invalid queue: must be a non-empty string");
           }
-          if (typeof json.name !== "string" || json.name.trim().length === 0) {
+          if (!checkNonEmptyString(json.name)) {
             return badRequest("Invalid name: must be a non-empty string");
           }
           taskIds.push(await addTask(json));
@@ -124,12 +121,12 @@ export function buildTaskRoutes(redisClient: RedisClient) {
     },
     "/tasks/fetch/:workerId/:queue/:n": async (req: BunRequest) => {
       const workerId = req.params.workerId;
-      if (workerId === undefined || workerId.trim().length === 0) {
+      if (!checkNonEmptyString(workerId)) {
         return badRequest("Invalid workerId");
       }
 
       const queueName = req.params.queue;
-      if (typeof queueName !== "string" || queueName.trim().length === 0) {
+      if (!checkNonEmptyString(queueName)) {
         return badRequest("Invalid queue");
       }
 
@@ -232,7 +229,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
 
         const taskStatusUpdate = (await req.json()) as UpdateTaskStatusReq;
         const { workerId, taskStatus, taskInfo } = taskStatusUpdate;
-        if (typeof workerId !== "string" || workerId.trim().length === 0) {
+        if (!checkNonEmptyString(workerId)) {
           return badRequest("Invalid workerId");
         }
 

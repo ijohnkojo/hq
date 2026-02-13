@@ -13,9 +13,13 @@ signale.config({
   displayDate: true,
 });
 
+export function checkNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 // function that starts a callback periodically every 'delay' ms
 export async function periodicCallback(
-  callback: () => Promise<void> | void,
+  callback: () => Promise<void>,
   delay: number,
 ) {
   const sleep = (delay: number) => {

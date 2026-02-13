@@ -1,5 +1,5 @@
 import type { BunRequest, RedisClient } from "bun";
-import { signale } from "../util";
+import { checkNonEmptyString, signale } from "../util";
 import { badRequest } from "./http";
 
 export function buildStatusRoutes(redisClient: RedisClient) {
@@ -7,7 +7,7 @@ export function buildStatusRoutes(redisClient: RedisClient) {
     "/status": new Response("OK"),
     "/status/:workerId": async (req: BunRequest) => {
       const workerId = req.params.workerId;
-      if (workerId === undefined || workerId.trim().length === 0) {
+      if (!checkNonEmptyString(workerId)) {
         return badRequest("Invalid workerId");
       }
 
