@@ -16,6 +16,7 @@ function isTerminalTaskStatus(
 
 type TaskHash = {
   taskBuf: string;
+  name: string;
   heavyKey: string;
   queue: string;
   status: TaskStatus;
@@ -66,6 +67,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
   async function addTask(json: AddTaskReq): Promise<number> {
     const taskId = String(await redisClient.incr("taskId"));
     const queueName = json.queue.trim();
+    const taskName = json.name.trim();
 
     let payloadSize = Buffer.from(json.task).length;
     let logMsg = `Task ${taskId} received`;
@@ -86,6 +88,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
     // write task state before enqueueing to prevent consumers seeing missing task bodies
     const taskHash = {
       taskBuf: json.task,
+      name: taskName,
       heavyKey: json.heavyKey ?? "",
       queue: queueName,
       status: "queued",
@@ -110,6 +113,9 @@ export function buildTaskRoutes(redisClient: RedisClient) {
             json.queue.trim().length === 0
           ) {
             return badRequest("Invalid queue: must be a non-empty string");
+          }
+          if (typeof json.name !== "string" || json.name.trim().length === 0) {
+            return badRequest("Invalid name: must be a non-empty string");
           }
           taskIds.push(await addTask(json));
         }
@@ -167,6 +173,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
             redisClient.hmget(`tasks:${taskId}`, [
               "status",
               "worker",
+              "name",
               "queue",
               "info",
             ]),
@@ -175,7 +182,8 @@ export function buildTaskRoutes(redisClient: RedisClient) {
 
         const tasks = rows.map((row, index) => {
           const taskId = taskIds[index] as number;
-          const [taskStatus, workerId, queueName, taskInfoRaw] = row as [
+          const [taskStatus, workerId, taskName, queueName, taskInfoRaw] = row as [
+            string,
             string,
             string,
             string,
@@ -196,6 +204,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
               taskId,
               status: null,
               workerId: null,
+              name: null,
               queue: null,
               info: null,
             };
@@ -205,6 +214,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
             taskId,
             status: taskStatus,
             workerId: workerId === "" ? null : workerId,
+            name: taskName === "" ? null : taskName,
             queue: queueName === "" ? null : queueName,
             info: taskInfo,
           };
