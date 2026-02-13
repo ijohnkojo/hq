@@ -1,16 +1,17 @@
 // imports
 import { createRoutes } from "./routes";
-import { createServerState } from "./state";
 import { workersAreAlive } from "./callbacks";
 import { config } from "./config";
 import { signale, periodicCallback } from "./util";
+import { initializeRedisClient } from "./state";
 
 async function initializeServer() {
   signale.start(`${config.server.name} starting...`);
 
+  const redisClient = await initializeRedisClient();
+
   // initialize state and routes
-  const state = createServerState();
-  const routes = createRoutes(state);
+  const routes = createRoutes(redisClient);
 
   const server = Bun.serve({
     port: config.server.port,
@@ -22,7 +23,7 @@ async function initializeServer() {
 
   // periodic callback to check worker health
   periodicCallback(
-    workersAreAlive(state, config.server.workerTimeoutMs),
+    workersAreAlive(redisClient, config.server.workerTimeoutMs),
     config.server.workerTimeoutMs,
   );
 }

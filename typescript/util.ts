@@ -14,13 +14,16 @@ signale.config({
 });
 
 // function that starts a callback periodically every 'delay' ms
-export async function periodicCallback(callback: Function, delay: number) {
+export async function periodicCallback(
+  callback: () => Promise<void> | void,
+  delay: number,
+) {
   const sleep = (delay: number) => {
     return new Promise((done, _) => setTimeout(done, delay));
   };
 
   while (true) {
-    callback();
+    await callback();
     await sleep(delay);
   }
 }

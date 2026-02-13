@@ -4,8 +4,8 @@ import requests
 import typing as tp
 
 from hq.base import HQBaseConnection
-from hq.util import serialize_obj, deserialize_obj
-from hq.types import TaskID, TaskStatus, AddTaskDict, TaskInfo
+from hq.util import serialize_obj
+from hq.types import TaskID, TaskStatus, AddTaskDict
 
 
 # client extends with `submit` and `map`
@@ -63,13 +63,4 @@ class HQClient(HQBaseConnection):
 
         # else return status, the type is given by the server implementation (we can trust it)
         body = response.json()
-        status = body["status"]
-        info = body["info"]
-        interpreted_info = TaskInfo(
-            {
-                "workerId": info["workerId"],
-                "runtime": info["runtime"],
-                "extra": deserialize_obj(info["extra"]),
-            }
-        )
-        return TaskStatus({"status": status, "info": interpreted_info})
+        return TaskStatus(body)

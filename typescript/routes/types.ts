@@ -13,4 +13,5 @@ export type AddHeavyReq = {
 export type UpdateTaskStatusReq = {
   workerId: string;
   taskStatus: TaskStatus;
+  taskInfo?: Record<string, unknown> | null;
 };

@@ -1,14 +1,14 @@
-import type { ServerState } from "../state";
 import { notFound } from "./http";
 import { buildHeavyRoutes } from "./heavy";
 import { buildStatusRoutes } from "./status";
 import { buildTaskRoutes } from "./tasks";
+import type { RedisClient } from "bun";
 
-export function createRoutes(state: ServerState) {
+export function createRoutes(redisClient: RedisClient) {
   return {
-    ...buildStatusRoutes(state),
-    ...buildTaskRoutes(state),
-    ...buildHeavyRoutes(state),
+    ...buildStatusRoutes(redisClient),
+    ...buildTaskRoutes(redisClient),
+    ...buildHeavyRoutes(redisClient),
     "/tasks/*": notFound(),
     "/*": notFound(),
   };

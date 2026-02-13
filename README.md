@@ -15,6 +15,12 @@ The HTTP server can be viewed as a very simplified message queue (like RabbitMQ)
 
 Uses [`bun`](https://bun.com) and [`uv`](https://docs.astral.sh/uv/).
 
+1. start a redis server that listens at `redis://localhost:6379` (or configure via `HQ_REDIS_URL` env variable), e.g.:
+
+```shell
+redis-server --port 6379
+```
+
 1. start the queue server with `bun`:
 
 ```shell
@@ -33,4 +39,4 @@ uv run example/simple/client.py
 uv run example/simple/worker.py
 ```
 
-Once all tasks are finished the server and the worker(s) can be shut down with ctrl+c.
+Once all tasks are finished redis, the server and the worker(s) can be shut down with ctrl+c.

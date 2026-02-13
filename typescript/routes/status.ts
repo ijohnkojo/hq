@@ -1,11 +1,8 @@
-import type { BunRequest } from "bun";
-import type { ServerState } from "../state";
+import type { BunRequest, RedisClient } from "bun";
 import { signale } from "../util";
 import { badRequest } from "./http";
 
-export function buildStatusRoutes(state: ServerState) {
-  const [, , workers] = state;
-
+export function buildStatusRoutes(redisClient: RedisClient) {
   return {
     "/status": new Response("OK"),
     "/status/:workerId": async (req: BunRequest) => {
@@ -15,7 +12,10 @@ export function buildStatusRoutes(state: ServerState) {
       }
 
       signale.info(`Received heartbeat from worker ${workerId}`);
-      workers.status.set(workerId, Date.now());
+
+      // update last worker ping in redis
+      const now = Date.now();
+      await redisClient.hset("workers:health", workerId, now.toString());
       return new Response("OK");
     },
   };

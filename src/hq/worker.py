@@ -9,8 +9,7 @@ import os
 import typing as tp
 
 from hq.base import HQBaseConnection
-from hq.util import deserialize_obj, serialize_obj
-from hq.types import TaskInfo
+from hq.util import deserialize_obj
 
 
 # client extends with `fetch`
@@ -83,28 +82,27 @@ def _process_loop(worker: HQWorker) -> None:
                 try:
                     result = worker._process_task(payload=payload)
                     status = "success"
-                    info = TaskInfo(
-                        workerId=worker.worker_id,
-                        runtime=time.time() - start,
-                        extra=None,
-                    )
+                    task_info = {
+                        "runtimeMs": int((time.time() - start) * 1000),
+                    }
                 except BaseException as error:
                     result = error
                     status = "error"
-                    info = TaskInfo(
-                        workerId=worker.worker_id,
-                        runtime=time.time() - start,
-                        extra=serialize_obj(error),
-                    )
+                    task_info = {
+                        "runtimeMs": int((time.time() - start) * 1000),
+                        "errorType": type(error).__name__,
+                        "errorMessage": str(error),
+                    }
 
                 # log the result
                 if result is not None:
                     print(f"Task '{task_id}' finished with {status}: {result=}")
 
-                # update task status in the queue, update 'info' in the future to e.g. include log file path or similar
+                # update task status in the queue
                 status_body = {
                     "workerId": worker.worker_id,
-                    "taskStatus": {"status": status, "info": info},
+                    "taskStatus": status,
+                    "taskInfo": task_info,
                 }
                 response = requests.post(
                     f"{worker.url}/tasks/status/{task_id}", json=status_body

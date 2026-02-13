@@ -1,31 +1,47 @@
-import type { ServerState, TaskStatus } from "./state";
+import type { RedisClient } from "bun";
 import { signale } from "./util";
 
-// check that no worker got lost by making sure there was
-// atleast one heatbeat every HQ_WORKER_TIMEOUT milliseconds
-export function workersAreAlive(state: ServerState, delay: number) {
-  return () => {
-    const [_, tasks, workers] = state;
+// Check that each worker sends at least one heartbeat every `delay` ms.
+// If not, mark all currently running tasks owned by that worker as "lost".
+export function workersAreAlive(redisClient: RedisClient, delay: number) {
+  return async () => {
     const now = Date.now();
-    for (let [workerId, lastPing] of workers.status) {
-      const diff = now - lastPing;
-      if (diff > delay) {
-        var logMsg = `Worker ${workerId} hasn't send a heartbeat within ${delay}ms (last ping was ${Math.floor(diff / 1000)}s ago)`;
-        const workerTasks = tasks.running.get(workerId);
-        // delete them from running and mark them as lost
-        tasks.running.delete(workerId);
-        workers.status.delete(workerId);
-        if (workerTasks && workerTasks.length > 0) {
-          logMsg += `, it lost tasks: ${workerTasks} (now marked as lost)`;
-          for (const taskId of workerTasks) {
-            const { status, info } = tasks.status.get(taskId) as TaskStatus;
-            tasks.status.set(taskId, { status: "lost", info: info });
-          }
-        }
-        signale.warn(logMsg);
-      } else {
-        signale.info(`Worker ${workerId} is alive`);
+    const workersHealth = await redisClient.hgetall("workers:health");
+
+    for (const [workerId, lastPing] of Object.entries(workersHealth)) {
+      const diff = now - Number(lastPing);
+      if (diff <= delay) {
+        continue;
       }
+
+      const runningKey = `workers:running:${workerId}`;
+      const taskIds = await redisClient.smembers(runningKey);
+
+      let lostCount = 0;
+      for (const taskId of taskIds) {
+        const taskKey = `tasks:${taskId}`;
+        const [status, owner] = (await redisClient.hmget(taskKey, [
+          "status",
+          "worker",
+        ])) as [string, string];
+
+        if (status === "running" && owner === workerId) {
+          await Promise.all([
+            redisClient.hset(taskKey, "status", "lost"),
+            redisClient.srem(runningKey, taskId),
+          ]);
+          lostCount += 1;
+        } else {
+          await redisClient.srem(runningKey, taskId);
+        }
+      }
+
+      // Remove stale heartbeat to avoid repeated handling of the same timeout.
+      await redisClient.hdel("workers:health", workerId);
+
+      signale.warn(
+        `Worker ${workerId} timed out after ${diff}ms (threshold ${delay}ms), marked ${lostCount} task(s) as lost`,
+      );
     }
   };
 }

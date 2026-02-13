@@ -7,6 +7,9 @@ type Config = {
   logging: {
     level: string;
   };
+  redis: {
+    url: string;
+  };
 };
 
 export const config: Config = {
@@ -17,5 +20,8 @@ export const config: Config = {
   },
   logging: {
     level: process.env.HQ_LOG_LEVEL ?? "info",
+  },
+  redis: {
+    url: process.env.HQ_REDIS_URL ?? "redis://localhost:6379",
   },
 };

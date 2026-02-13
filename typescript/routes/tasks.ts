@@ -1,59 +1,48 @@
-import type { BunRequest } from "bun";
-import type { Payload, ServerState, TaskInfo, TaskStatus } from "../state";
+import { RedisClient, type BunRequest } from "bun";
+import type { Payload, TaskStatus } from "../state";
 import { signale } from "../util";
 import { badRequest } from "./http";
 import type { AddTaskReq, UpdateTaskStatusReq } from "./types";
 
-function unknownTaskInfo(workerId: string | null): TaskInfo {
-  return {
-    workerId,
-    runtime: null,
-    extra: null,
-  };
-}
-
 function isTerminalTaskStatus(
-  status: TaskStatus["status"],
+  status: TaskStatus,
 ): status is "success" | "error" | "lost" {
   return status === "success" || status === "error" || status === "lost";
 }
 
-export function buildTaskRoutes(state: ServerState) {
-  let taskId = 0;
-  const [heavy, tasks] = state;
-
-  function claimTask(workerId: string, id: number): Payload | null {
-    const task = tasks.available.get(id);
-    if (task === undefined) {
-      return null;
-    }
-
-    const [taskBuf, heavyKey] = task;
+export function buildTaskRoutes(redisClient: RedisClient) {
+  async function claimTask(workerId: string, id: string): Promise<Payload> {
+    const taskKey = `tasks:${id}`;
+    const [taskBuf, heavyKey] = (await redisClient.hmget(taskKey, [
+      "taskBuf",
+      "heavyKey",
+    ])) as [string, string];
     signale.info(`Task ${id} is evicted from the queue`);
-    tasks.available.delete(id);
 
-    const runningTasks = tasks.running.get(workerId);
-    if (runningTasks) {
-      runningTasks.push(id);
-    } else {
-      tasks.running.set(workerId, [id]);
-    }
+    // update task status to running and store the workerId where it is processed
+    await Promise.all([
+      redisClient.hset(taskKey, "status", "running", "worker", workerId),
+      redisClient.sadd(`workers:running:${workerId}`, id),
+    ]);
 
     signale.info(`Task ${id} is set to run on worker ${workerId}`);
-    tasks.status.set(id, {
-      status: "running",
-      info: unknownTaskInfo(workerId),
-    });
 
     if (heavyKey) {
-      const heavyBuf = heavy.bufs.get(heavyKey);
+      const heavyRedisKey = `heavy:${heavyKey}`;
+      const [heavyBuf] = await redisClient.hmget(heavyRedisKey, ["buf"]);
       if (heavyBuf) {
-        heavy.refCounts.set(heavyKey, (heavy.refCounts.get(heavyKey) || 0) - 1);
-        if (heavy.refCounts.get(heavyKey) === 0) {
+        // atomic decrement to avoid lost updates across server instances
+        const newRefCountRaw = await redisClient.hincrby(
+          heavyRedisKey,
+          "refCount",
+          -1,
+        );
+        const newRefCount = Number(newRefCountRaw);
+        if (newRefCount <= 0) {
           signale.debug(
             `Deleting heavy key ${heavyKey} (${Buffer.from(heavyBuf).length} bytes), ref count at 0`,
           );
-          heavy.bufs.delete(heavyKey);
+          await redisClient.del(heavyRedisKey);
         }
         return [taskBuf, heavyBuf];
       }
@@ -61,8 +50,8 @@ export function buildTaskRoutes(state: ServerState) {
     return [taskBuf, null];
   }
 
-  function addTask(json: AddTaskReq): number {
-    const payload = [json.task, json.heavyKey] as Payload;
+  async function addTask(json: AddTaskReq): Promise<number> {
+    const taskId = String(await redisClient.incr("taskId"));
 
     let payloadSize = Buffer.from(json.task).length;
     let logMsg = `Task ${taskId} received`;
@@ -70,20 +59,39 @@ export function buildTaskRoutes(state: ServerState) {
     if (json.heavyKey) {
       payloadSize += Buffer.from(json.heavyKey).length;
       logMsg += ` with heavy key ${json.heavyKey}`;
-      heavy.refCounts.set(
-        json.heavyKey,
-        (heavy.refCounts.get(json.heavyKey) || 0) + 1,
-      );
+
+      // then increment
+      await redisClient.hincrby(`heavy:${json.heavyKey}`, "refCount", 1);
     }
 
     signale.info(logMsg + ` (${payloadSize} bytes)`);
 
-    tasks.available.set(taskId, payload);
+    // tasks:queue is the message queue
+    // tasks:{taskId} is the state of a task
+    const taskKey = `tasks:${taskId}`;
+    // write task state before enqueueing to prevent consumers seeing missing task bodies
+    await redisClient.hset(
+      taskKey,
+      // task payload
+      "taskBuf",
+      json.task,
+      // pointer to the heavy buffer
+      "heavyKey",
+      json.heavyKey ? json.heavyKey : "",
+      // task status
+      "status",
+      "queued",
+      // where the task is processed
+      "worker",
+      "",
+      // JSON payload with runtime/errors/etc from worker
+      "info",
+      "",
+    );
+    await redisClient.lpush("tasks:queue", taskId);
+
     signale.info(`Task ${taskId} is now queued`);
-    tasks.status.set(taskId, { status: "queued", info: unknownTaskInfo(null) });
-    const currentTaskId = taskId;
-    taskId++;
-    return currentTaskId;
+    return Number(taskId);
   }
 
   return {
@@ -92,7 +100,7 @@ export function buildTaskRoutes(state: ServerState) {
         const jsons = (await req.json()) as AddTaskReq[];
         const taskIds: number[] = [];
         for (const json of jsons) {
-          taskIds.push(addTask(json));
+          taskIds.push(await addTask(json));
         }
         return Response.json({ taskIds });
       },
@@ -109,20 +117,15 @@ export function buildTaskRoutes(state: ServerState) {
       }
 
       const payloads: Payload[] = [];
-      const taskIds: number[] = [];
-      const availableCount = Math.min(requestedCount, tasks.available.size);
+      const taskIds: string[] = [];
 
-      for (let i = 0; i < availableCount; i++) {
-        const id = tasks.available.keys().next().value as number | undefined;
-        if (id === undefined) {
-          return badRequest("No tasks available");
+      for (let i = 0; i < requestedCount; i++) {
+        const id = await redisClient.rpop("tasks:queue");
+        if (id === null) {
+          break;
         }
 
-        const payload = claimTask(workerId, id);
-        if (payload === null) {
-          return badRequest(`Task ${id} not found`);
-        }
-
+        const payload = await claimTask(workerId, id);
         payloads.push(payload);
         taskIds.push(id);
       }
@@ -131,49 +134,79 @@ export function buildTaskRoutes(state: ServerState) {
     },
     "/tasks/status/:taskId": {
       GET: async (req: BunRequest) => {
-        const id = Number(req.params.taskId);
-        if (!Number.isInteger(id) || id < 0) {
-          return badRequest(`Invalid 'taskId', got ${id}`);
+        const taskId = Number(req.params.taskId);
+        if (!Number.isInteger(taskId) || taskId < 0) {
+          return badRequest(`Invalid 'taskId', got ${taskId}`);
         }
 
-        const taskStatus = tasks.status.get(id);
+        const taskKey = `tasks:${taskId}`;
+        const [taskStatus, workerId, taskInfoRaw] = (await redisClient.hmget(
+          taskKey,
+          ["status", "worker", "info"],
+        )) as [string, string, string | null];
+
         if (taskStatus) {
+          let taskInfo: Record<string, unknown> | null = null;
+          if (taskInfoRaw) {
+            try {
+              taskInfo = JSON.parse(taskInfoRaw) as Record<string, unknown>;
+            } catch {
+              taskInfo = null;
+            }
+          }
           return Response.json({
-            status: taskStatus.status,
-            info: taskStatus.info,
+            status: taskStatus,
+            workerId: workerId,
+            info: taskInfo,
           });
         }
-        return badRequest(`Task ${id} doesn't exist, can't query its status`);
+
+        return badRequest(
+          `Task ${taskId} doesn't exist, can't query its status`,
+        );
       },
       POST: async (req: BunRequest) => {
-        const id = Number(req.params.taskId);
-        if (!Number.isInteger(id) || id < 0) {
-          return badRequest(`Invalid 'taskId', got ${id}`);
+        const taskId = Number(req.params.taskId);
+        if (!Number.isInteger(taskId) || taskId < 0) {
+          return badRequest(`Invalid 'taskId', got ${taskId}`);
         }
 
         const taskStatusUpdate = (await req.json()) as UpdateTaskStatusReq;
-        const { workerId, taskStatus } = taskStatusUpdate;
+        const { workerId, taskStatus, taskInfo } = taskStatusUpdate;
 
-        if (!isTerminalTaskStatus(taskStatus.status)) {
+        if (!isTerminalTaskStatus(taskStatus)) {
           return badRequest(
-            `Task ${id} can't be updated to be '${taskStatus.status}', only 'success', 'error' or 'lost' allowed`,
+            `Task ${taskId} can't be updated to be '${taskStatus}', only 'success', 'error' or 'lost' allowed`,
           );
         }
 
-        const runningTasks = tasks.running.get(workerId);
-        if (runningTasks) {
-          const index = runningTasks.indexOf(id, 0);
-          if (index > -1) {
-            runningTasks.splice(index, 1);
-          }
-        } else {
-          return badRequest(`Worker ${workerId} is not running`);
+        const taskKey = `tasks:${taskId}`;
+        const [currentStatus, currentWorker] = (await redisClient.hmget(taskKey, [
+          "status",
+          "worker",
+        ])) as [string, string];
+
+        if (!currentStatus) {
+          return badRequest(`Task ${taskId} doesn't exist, can't update its status`);
         }
 
-        signale.info(
-          `Task ${id} is updated from 'running' to '${taskStatus.status}'`,
-        );
-        tasks.status.set(id, taskStatus);
+        if (currentWorker !== workerId) {
+          return badRequest(
+            `Task ${taskId} is owned by worker '${currentWorker}', got '${workerId}'`,
+          );
+        }
+
+        if (currentStatus !== "running") {
+          return badRequest(
+            `Task ${taskId} is '${currentStatus}', only running tasks can transition to terminal status`,
+          );
+        }
+        await Promise.all([
+          redisClient.hset(taskKey, "status", taskStatus),
+          redisClient.hset(taskKey, "info", JSON.stringify(taskInfo ?? null)),
+          redisClient.srem(`workers:running:${workerId}`, String(taskId)),
+        ]);
+
         return new Response("Ok");
       },
     },

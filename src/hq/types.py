@@ -12,12 +12,6 @@ class AddTaskDict(tp.TypedDict):
     heavyKey: str | None
 
 
-class TaskInfo(tp.TypedDict):
-    workerId: str | None
-    runtime: float | None
-    extra: str | None
-
-
 class TaskStatus(tp.TypedDict):
     status: (
         tp.Literal["success"]
@@ -26,4 +20,5 @@ class TaskStatus(tp.TypedDict):
         | tp.Literal["queued"]
         | tp.Literal["lost"]
     )
-    info: TaskInfo
+    workerId: str
+    info: dict[str, tp.Any] | None
