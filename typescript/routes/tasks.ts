@@ -2,7 +2,11 @@ import { RedisClient, type BunRequest } from "bun";
 import type { Payload, TaskStatus } from "../state";
 import { signale } from "../util";
 import { badRequest } from "./http";
-import type { AddTaskReq, UpdateTaskStatusReq } from "./types";
+import type {
+  AddTaskReq,
+  QueryTaskStatusReq,
+  UpdateTaskStatusReq,
+} from "./types";
 
 function isTerminalTaskStatus(
   status: TaskStatus,
@@ -132,20 +136,34 @@ export function buildTaskRoutes(redisClient: RedisClient) {
 
       return Response.json({ taskIds, payloads });
     },
-    "/tasks/status/:taskId": {
-      GET: async (req: BunRequest) => {
-        const taskId = Number(req.params.taskId);
-        if (!Number.isInteger(taskId) || taskId < 0) {
-          return badRequest(`Invalid 'taskId', got ${taskId}`);
+    "/tasks/status": {
+      POST: async (req: BunRequest) => {
+        const json = (await req.json()) as QueryTaskStatusReq;
+        if (!Array.isArray(json.taskIds)) {
+          return badRequest("Invalid request body: 'taskIds' must be an array");
         }
 
-        const taskKey = `tasks:${taskId}`;
-        const [taskStatus, workerId, taskInfoRaw] = (await redisClient.hmget(
-          taskKey,
-          ["status", "worker", "info"],
-        )) as [string, string, string | null];
+        const taskIds = json.taskIds.map(Number);
+        for (const taskId of taskIds) {
+          if (!Number.isInteger(taskId) || taskId < 0) {
+            return badRequest(`Invalid 'taskId' in batch, got ${taskId}`);
+          }
+        }
 
-        if (taskStatus) {
+        const rows = await Promise.all(
+          taskIds.map((taskId) =>
+            redisClient.hmget(`tasks:${taskId}`, ["status", "worker", "info"]),
+          ),
+        );
+
+        const tasks = rows.map((row, index) => {
+          const taskId = taskIds[index] as number;
+          const [taskStatus, workerId, taskInfoRaw] = row as [
+            string,
+            string,
+            string | null,
+          ];
+
           let taskInfo: Record<string, unknown> | null = null;
           if (taskInfoRaw) {
             try {
@@ -154,17 +172,28 @@ export function buildTaskRoutes(redisClient: RedisClient) {
               taskInfo = null;
             }
           }
-          return Response.json({
-            status: taskStatus,
-            workerId: workerId,
-            info: taskInfo,
-          });
-        }
 
-        return badRequest(
-          `Task ${taskId} doesn't exist, can't query its status`,
-        );
+          if (!taskStatus) {
+            return {
+              taskId,
+              status: null,
+              workerId: null,
+              info: null,
+            };
+          }
+
+          return {
+            taskId,
+            status: taskStatus,
+            workerId: workerId === "" ? null : workerId,
+            info: taskInfo,
+          };
+        });
+
+        return Response.json({ tasks });
       },
+    },
+    "/tasks/status/:taskId": {
       POST: async (req: BunRequest) => {
         const taskId = Number(req.params.taskId);
         if (!Number.isInteger(taskId) || taskId < 0) {

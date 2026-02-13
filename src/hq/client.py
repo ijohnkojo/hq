@@ -55,12 +55,32 @@ class HQClient(HQBaseConnection):
 
         return response.json()["taskIds"]
 
-    def check(self, task_id: int) -> TaskStatus:
-        response = requests.get(f"{self.url}/tasks/status/{task_id}")
+    def check(self, *task_ids: int) -> tuple[TaskStatus | None, ...]:
+        ids = [int(task_id) for task_id in task_ids]
+        if len(ids) == 0:
+            return tuple()
 
-        # raise if task doesn't exist
+        response = requests.post(
+            f"{self.url}/tasks/status",
+            json={"taskIds": ids},
+        )
         response.raise_for_status()
 
-        # else return status, the type is given by the server implementation (we can trust it)
-        body = response.json()
-        return TaskStatus(body)
+        by_id: dict[int, TaskStatus | None] = {}
+        for item in response.json()["tasks"]:
+            task_id = int(item["taskId"])
+            status = item["status"]
+            if status is None:
+                by_id[task_id] = None
+                continue
+
+            by_id[task_id] = TaskStatus(
+                {
+                    "status": status,
+                    "workerId": item["workerId"],
+                    "info": item["info"],
+                }
+            )
+
+        # Preserve input ordering and multiplicity.
+        return tuple(by_id.get(task_id) for task_id in ids)

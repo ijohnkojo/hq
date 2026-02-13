@@ -20,5 +20,5 @@ class TaskStatus(tp.TypedDict):
         | tp.Literal["queued"]
         | tp.Literal["lost"]
     )
-    workerId: str
+    workerId: str | None
     info: dict[str, tp.Any] | None

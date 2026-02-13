@@ -10,6 +10,10 @@ export type AddHeavyReq = {
   heavyKey: string;
 };
 
+export type QueryTaskStatusReq = {
+  taskIds: number[];
+};
+
 export type UpdateTaskStatusReq = {
   workerId: string;
   taskStatus: TaskStatus;

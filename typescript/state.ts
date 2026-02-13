@@ -5,9 +5,6 @@ export type Payload = [string, string | null];
 // possible task status
 export type TaskStatus = "success" | "running" | "error" | "queued" | "lost";
 
-// possible worker status
-export type WorkerStatus = "online" | "offline";
-
 import { RedisClient } from "bun";
 import { config } from "./config";
 import { signale } from "./util";

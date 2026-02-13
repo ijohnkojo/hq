@@ -32,10 +32,12 @@ if __name__ == "__main__":
         while True:
             time.sleep(3)
             print("\nChecking tasks status:")
+            all_ids = [task_id, *task_ids, faulty_task_id]
+            checked_many = client.check(*all_ids)
             statuses = []
-            for _id in [task_id, *task_ids, faulty_task_id]:
-                checked = client.check(_id)
-                statuses.append(checked["status"])
+            for _id, checked in zip(all_ids, checked_many):
+                status = checked["status"] if checked is not None else "missing"
+                statuses.append(status)
                 print(f"[status] Task ID: {_id}, Status: {checked}")
 
             # break if all of them have been finished
