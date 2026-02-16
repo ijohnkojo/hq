@@ -1,5 +1,3 @@
-import type { BunRequest } from "bun";
-
 export function badRequest(message: string): Response {
   return new Response(message, { status: 400 });
 }
