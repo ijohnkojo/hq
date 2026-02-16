@@ -106,7 +106,7 @@ export function buildTaskRoutes(redisClient: RedisClient) {
     "/tasks": {
       POST: async (req: BunRequest) => {
         const jsons = (await req.json()) as AddTaskReq[];
-        const taskIds: number[] = [];
+        // Validate entire batch before starting side effects.
         for (const json of jsons) {
           if (!checkNonEmptyString(json.queue)) {
             return badRequest("Invalid queue: must be a non-empty string");
@@ -114,8 +114,10 @@ export function buildTaskRoutes(redisClient: RedisClient) {
           if (!checkNonEmptyString(json.name)) {
             return badRequest("Invalid name: must be a non-empty string");
           }
-          taskIds.push(await addTask(json));
         }
+
+        const taskIds = await Promise.all(jsons.map((json) => addTask(json)));
+
         return Response.json({ taskIds });
       },
     },
@@ -179,13 +181,8 @@ export function buildTaskRoutes(redisClient: RedisClient) {
 
         const tasks = rows.map((row, index) => {
           const taskId = taskIds[index] as number;
-          const [taskStatus, workerId, taskName, queueName, taskInfoRaw] = row as [
-            string,
-            string,
-            string,
-            string,
-            string | null,
-          ];
+          const [taskStatus, workerId, taskName, queueName, taskInfoRaw] =
+            row as [string, string, string, string, string | null];
 
           let taskInfo: Record<string, unknown> | null = null;
           if (taskInfoRaw) {
