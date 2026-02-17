@@ -39,11 +39,11 @@ export const config: Immutable<Config> = {
       const keyFile = Bun.file(key);
       const certFile = Bun.file(cert);
 
-      signale.info(`Found TLS files at ${key} (key) and ${cert} (cert)`);
-
       if (!(await keyFile.exists()) || !(await certFile.exists())) {
         return undefined;
       }
+
+      signale.info(`Found TLS files at ${key} (key) and ${cert} (cert)`);
 
       // Bun's TLSOptions
       return { key: keyFile, cert: certFile };
