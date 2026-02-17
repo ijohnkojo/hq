@@ -21,6 +21,11 @@ Uses [`bun`](https://bun.com) and [`uv`](https://docs.astral.sh/uv/).
 redis-server --port 6379
 ```
 
+or use [`dragonfly`](https://github.com/dragonflydb/dragonfly) (a drop-in replacement for redis):
+```shell
+docker run -p 6379:6379 --ulimit memlock=-1 docker.dragonflydb.io/dragonflydb/dragonfly
+```
+
 2. start the queue server with `bun`:
 
 ```shell

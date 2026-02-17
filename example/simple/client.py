@@ -22,7 +22,7 @@ if __name__ == "__main__":
         task_id = client.submit(my_function)
         print(f"[submit] Task ID: {task_id}")
 
-        task_ids = client.map(my_map_fun, range(10))
+        task_ids = client.map(my_map_fun, range(20))
         print(f"[map] Task IDs: {task_ids}")
 
         faulty_task_id = client.submit(my_faulty_fun)

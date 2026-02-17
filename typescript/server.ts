@@ -1,4 +1,5 @@
 // imports
+import type { TLSOptions } from "bun";
 import { createRoutes } from "./routes";
 import { workersAreAlive } from "./callbacks";
 import { config } from "./config";
@@ -17,6 +18,8 @@ async function initializeServer() {
     port: config.server.port,
     // `routes` requires Bun v1.2.3+
     routes: routes,
+    // if HQ_SERVER_KEY_FILE and HQ_SERVER_CERT_FILE are set we can use tls
+    tls: config.server.tls as TLSOptions | undefined,
   });
 
   signale.success(`${config.server.name} running at ${server.url}`);
