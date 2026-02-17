@@ -1,3 +1,8 @@
+// recursively make any property of an object readonly at the type level
+type Immutable<T> = {
+  readonly [K in keyof T]: Immutable<T[K]>;
+};
+
 type Config = {
   server: {
     name: string;
@@ -12,7 +17,7 @@ type Config = {
   };
 };
 
-export const config: Config = {
+export const config: Immutable<Config> = {
   server: {
     name: "hq-server",
     port: Number(process.env.HQ_SERVER_PORT ?? 3000),
