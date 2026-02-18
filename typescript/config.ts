@@ -40,6 +40,9 @@ export const config: Immutable<Config> = {
       const certFile = Bun.file(cert);
 
       if (!(await keyFile.exists()) || !(await certFile.exists())) {
+        signale.error(
+          `TLS files ${key} (key) and ${cert} (cert) were provided, but at least one of them doesn't exist`,
+        );
         return undefined;
       }
 
