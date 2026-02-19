@@ -73,11 +73,11 @@ if __name__ == "__main__":
     """
     Run this script to execute a hq payload as a subprocess, e.g.,
 
-        $ python exe.py '["foo", "bar"]' '1'
+        $ python exe.py 1 ["...", "..."]
 
     where:
-        arg1: json serialized payload
-        arg2: task ID
+        arg1: task ID
+        arg2: json serialized payload (2-element list of taskBuf & Optional[heavyBuf])
 
     The idea of running the payload in a dedicated subprocess allows us to:
     - swap out the python executable (e.g. `uv run --with ... exe.py ...`)
