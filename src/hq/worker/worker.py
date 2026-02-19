@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import functools
+import json
 import multiprocessing
+from pathlib import Path
 import requests
 import time
 import socket
+import subprocess
 import os
 import typing as tp
 
 from hq.base import HQBaseConnection
-from hq.util import deserialize_obj
 
 
 # client extends with `fetch`
@@ -52,25 +53,6 @@ class HQWorker(HQBaseConnection):
         # pairs of taskIds and task+heavy buf [[], ...]
         return response.json()
 
-    def _process_task(self, payload: list) -> None:
-        assert len(payload) == 2, f"received unrecognisable {payload=}"
-        task, heavy = payload
-
-        task = deserialize_obj(task)
-        heavy = deserialize_obj(heavy)
-
-        # the default (task is a 0-arg callable)
-        if heavy is None:
-            assert callable(task), f"{task=} is not callable"
-            del heavy
-        # here: heavy is the callable and task the arg
-        else:
-            assert callable(heavy), f"{heavy=} is not callable"
-            task = functools.partial(heavy, task)
-
-        # run the task
-        return task()
-
 
 def _process_loop(worker: HQWorker) -> None:
     while True:
@@ -84,31 +66,23 @@ def _process_loop(worker: HQWorker) -> None:
             ids = ids_and_payloads["taskIds"]
             payloads = ids_and_payloads["payloads"]
             for task_id, payload in zip(ids, payloads):
-                start = time.time()
-                try:
-                    result = worker._process_task(payload=payload)
-                    status = "success"
-                    task_info = {
-                        "runtimeMs": int((time.time() - start) * 1000),
-                    }
-                except BaseException as error:
-                    result = error
-                    status = "error"
-                    task_info = {
-                        "runtimeMs": int((time.time() - start) * 1000),
-                        "errorType": type(error).__name__,
-                        "errorMessage": str(error),
-                    }
+                executable = Path(__file__).parent / "exe.py"
+                proc = subprocess.Popen(
+                    ["python", str(executable), task_id, json.dumps(payload)],
+                    stdout=None,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
 
-                # log the result
-                if result is not None:
-                    print(f"Task '{task_id}' finished with {status}: {result=}")
+                # wait for proc to finish and communicate err that contains execution information
+                _, err = proc.communicate()
+
+                info = json.loads(err)
 
                 # update task status in the queue
                 status_body = {
                     "workerId": worker.worker_id,
-                    "taskStatus": status,
-                    "taskInfo": task_info,
+                    **info,
                 }
                 response = requests.post(
                     f"{worker.url}/tasks/status/{task_id}", json=status_body

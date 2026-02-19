@@ -42,7 +42,6 @@ class HQClient(HQBaseConnection):
         fun: tp.Callable[[tp.Any], tp.Any],
         args: tp.Iterable[tp.Any],
         *,
-        fun_name: str | None = None,
         name: str | None = None,
         queue: str = "default",
     ) -> tp.List[TaskID]:
@@ -52,7 +51,7 @@ class HQClient(HQBaseConnection):
         # heavy payload
         heavy = serialize_obj(fun)
         # is this sufficient/ok to use `id`?
-        heavy_key = str(fun_name or id(fun))
+        heavy_key = f"mapfun:{id(fun)}"
         name = name if name is not None else _default_task_name(fun)
         body = {"task": heavy, "heavyKey": heavy_key}
         response = requests.post(f"{self.url}/heavy", json=body)
