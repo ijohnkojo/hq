@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import json
+import resource
 import sys
 import time
 
@@ -45,6 +46,7 @@ def main() -> None:
             "taskStatus": "success",
             "taskInfo": {
                 "runtime": time.time() - start,
+                "peakRSS": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
             },
         }
     except BaseException as error:
@@ -53,6 +55,7 @@ def main() -> None:
             "taskStatus": "error",
             "taskInfo": {
                 "runtime": time.time() - start,
+                "peakRSS": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
                 "errorType": type(error).__name__,
                 "errorMessage": str(error),
             },
