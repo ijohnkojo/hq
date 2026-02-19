@@ -71,9 +71,13 @@ def main() -> None:
 
 if __name__ == "__main__":
     """
-    Run this script to execute a hq payload as a subprocess,
-    e.g., `python exe.py '["foo", "bar"]' '1'`,
-    where arg1: json serialized payload; arg2: task ID
+    Run this script to execute a hq payload as a subprocess, e.g.,
+
+        $ python exe.py '["foo", "bar"]' '1'
+
+    where:
+        arg1: json serialized payload
+        arg2: task ID
 
     The idea of running the payload in a dedicated subprocess allows us to:
     - swap out the python executable (e.g. `uv run --with ... exe.py ...`)
@@ -81,6 +85,7 @@ if __name__ == "__main__":
 
     This can be configured then _per-task_!
 
-    It also allows for better debugging. One can execute this script manually and debug it.
+    It also allows for better debugging:
+    One can execute this script manually and debug it.
     """
     main()
