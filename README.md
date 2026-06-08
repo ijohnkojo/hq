@@ -29,7 +29,7 @@ docker run -p 6379:6379 --ulimit memlock=-1 docker.dragonflydb.io/dragonflydb/dr
 2. start the queue server with `bun`:
 
 ```shell
-bun run typescript/server.ts
+bun run hq_server/server.ts
 ```
 
 3. submit some tasks with `uv`:

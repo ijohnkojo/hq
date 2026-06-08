@@ -6,3 +6,5 @@ __pycache__
 node_modules
 bun.lock
 *.rdb
+#ignore the docs dir
+docs/
