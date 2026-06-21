@@ -4,7 +4,7 @@ import typing as tp
 
 # These types reflect the types defined in the hq_server/server.ts implementation
 
-TaskID: tp.TypeAlias = int
+TaskID: tp.TypeAlias = int # a type alias for the task id
 
 
 class AddTaskDict(tp.TypedDict):

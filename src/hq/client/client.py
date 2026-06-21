@@ -3,9 +3,9 @@ from __future__ import annotations
 import requests
 import typing as tp
 
-from hq.base import HQBaseConnection
-from hq.util import serialize_obj
-from hq.types import TaskID, TaskStatus, AddTaskDict
+from hq.shared.base import HQBaseConnection
+from hq.shared.util import serialize_obj
+from hq.shared.types import TaskID, TaskStatus, AddTaskDict
 
 
 def _default_task_name(fun: tp.Callable) -> str:

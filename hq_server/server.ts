@@ -6,14 +6,16 @@ import { config } from "./config";
 import { signale, periodicCallback } from "./util";
 import { initializeRedisClient } from "./state";
 
+// an async function that initializes the server
 async function initializeServer() {
   signale.start(`${config.server.name} starting...`);
 
-  const redisClient = await initializeRedisClient();
+  const redisClient = await initializeRedisClient(); // initializes the redis client
 
   // initialize state and routes
   const routes = createRoutes(redisClient);
 
+  // creates the server
   const server = Bun.serve({
     port: config.server.port,
     // `routes` requires Bun v1.2.3+

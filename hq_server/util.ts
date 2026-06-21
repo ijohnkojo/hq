@@ -1,10 +1,10 @@
 // imports
 import { Signale } from "signale";
-import { config } from "./config";
+
 
 // see more levels at https://klaudiosinani.com/signale/
 export const signale = new Signale({
-  logLevel: config.logging.level,
+  logLevel: process.env.HQ_LOG_LEVEL ?? "info",
 });
 
 signale.config({
