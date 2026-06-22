@@ -26,8 +26,11 @@ class HQWorker(HQBaseConnection):
         # number of tasks to fetch in a single API request
         fetch_n_tasks: int = 1,
         queue: str = "default",
+        *,
+        # TLS server-cert verification, forwarded to `requests` (see HQBaseConnection)
+        verify: bool | str | None = None,
     ) -> None:
-        super().__init__(host, port)
+        super().__init__(host, port, verify=verify)
         if worker_id is None:
             self.worker_id = f"{socket.gethostname()}-{os.getpid()}"
         else:
@@ -42,12 +45,15 @@ class HQWorker(HQBaseConnection):
         self.queue = queue
 
     def heartbeat(self) -> None:
-        response = requests.get(f"{self.url}/status/{self.worker_id}")
+        response = requests.get(
+            f"{self.url}/status/{self.worker_id}", verify=self.verify
+        )
         response.raise_for_status()
 
     def _fetch_tasks(self) -> dict:
         response = requests.get(
-            f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}"
+            f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}",
+            verify=self.verify,
         )
         response.raise_for_status()
         # pairs of taskIds and task+heavy buf [[], ...]
@@ -85,7 +91,9 @@ def _process_loop(worker: HQWorker) -> None:
                     **info,
                 }
                 response = requests.post(
-                    f"{worker.url}/tasks/status/{task_id}", json=status_body
+                    f"{worker.url}/tasks/status/{task_id}",
+                    json=status_body,
+                    verify=worker.verify,
                 )
                 response.raise_for_status()
 

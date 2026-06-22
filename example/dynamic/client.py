@@ -1,6 +1,12 @@
 import time
+from pathlib import Path
 from functools import partial
 from hq.client import HQClient
+
+# Trust the self-signed dev cert (repo-root/cert.pem). This absolute path is
+# captured by cloudpickle when the task below is serialized, so the worker that
+# re-runs the task (on the same machine, in dev) resolves it too.
+CA_CERT = str(Path(__file__).resolve().parents[2] / "cert.pem")
 
 
 def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
@@ -15,7 +21,7 @@ def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
     i *= 2
     if i < 10:
         # if smaller than 10, resubmit and don't do anything
-        with HQClient(host="http://localhost", port=3000) as client:
+        with HQClient(host="https://localhost", port=3000, verify=CA_CERT) as client:
             print(f"resubmitting with {i=}...")
             client.submit(partial(make_i_larger_than_ten, i, retry=retry + 1))
     else:
@@ -24,6 +30,6 @@ def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
 
 
 if __name__ == "__main__":
-    with HQClient(host="http://localhost", port=3000) as client:
+    with HQClient(host="https://localhost", port=3000, verify=CA_CERT) as client:
         task_ids = client.map(partial(make_i_larger_than_ten, retry=0), range(1, 11))
         print(f"[map] Task IDs: {task_ids}")

@@ -1,5 +1,10 @@
 import time
+from pathlib import Path
 from hq.client import HQClient
+
+# Trust the self-signed dev cert (repo-root/cert.pem). For real, publicly-signed
+# certs you'd drop `verify=` and let `requests` use the system CA bundle.
+CA_CERT = str(Path(__file__).resolve().parents[2] / "cert.pem")
 
 
 def my_function() -> str:
@@ -17,7 +22,7 @@ def my_faulty_fun() -> None:
 
 
 if __name__ == "__main__":
-    with HQClient(host="http://localhost", port=3000) as client:
+    with HQClient(host="https://localhost", port=3000, verify=CA_CERT) as client: # connect to the HQ server (for now, localhost:3000, since the server is running on the same machine)
         # submit some tasks
         task_id = client.submit(my_function)
         print(f"[submit] Task ID: {task_id}")

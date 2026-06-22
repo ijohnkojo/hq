@@ -12,7 +12,7 @@ def _default_task_name(fun: tp.Callable) -> str:
     return getattr(fun, "__name__", fun.__class__.__name__)
 
 
-# client extends with `submit` and `map`
+# client inherits from HQBaseConnection and extends with `submit` and `map`
 class HQClient(HQBaseConnection):
     def submit(
         self,
@@ -29,7 +29,7 @@ class HQClient(HQBaseConnection):
             AddTaskDict({"task": task, "name": name, "queue": queue, "heavyKey": None})
         ]
 
-        response = requests.post(f"{self.url}/tasks", json=body)
+        response = requests.post(f"{self.url}/tasks", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(f"Failed to submit task, got {response.status_code}")
 
@@ -54,7 +54,7 @@ class HQClient(HQBaseConnection):
         heavy_key = f"mapfun:{id(fun)}"
         name = name if name is not None else _default_task_name(fun)
         body = {"task": heavy, "heavyKey": heavy_key}
-        response = requests.post(f"{self.url}/heavy", json=body)
+        response = requests.post(f"{self.url}/heavy", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(f"Failed to pre-submit {fun}, got {response.status_code}")
 
@@ -70,7 +70,7 @@ class HQClient(HQBaseConnection):
             )
             for arg in args
         ]
-        response = requests.post(f"{self.url}/tasks", json=body)
+        response = requests.post(f"{self.url}/tasks", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(
                 f"Failed to submit tasks that map {fun} over {args}, got {response.status_code}"
@@ -86,6 +86,7 @@ class HQClient(HQBaseConnection):
         response = requests.post(
             f"{self.url}/tasks/status",
             json={"taskIds": ids},
+            verify=self.verify,
         )
         response.raise_for_status()
 

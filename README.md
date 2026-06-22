@@ -45,3 +45,42 @@ uv run example/simple/worker.py
 ```
 
 Once all tasks are finished redis, the server and the worker(s) can be shut down with ctrl+c.
+
+## TLS (HTTPS)
+
+The HTTP boundary between the client/worker and the server can be encrypted with TLS.
+
+1. Generate a self-signed certificate for local development (valid for `localhost`):
+
+```shell
+openssl req -x509 -newkey rsa:4096 -nodes \
+  -keyout key.pem -out cert.pem -days 365 \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+2. Start the server with the key/cert env vars so Bun serves HTTPS:
+
+```shell
+HQ_SERVER_KEY_FILE=key.pem HQ_SERVER_CERT_FILE=cert.pem bun run hq_server/server.ts
+```
+
+The server logs `Found TLS files ...` and serves at `https://localhost:3000`.
+
+3. Point the client/worker at `https://` and tell them which certificate to trust
+   via `verify` (the path to the CA bundle / self-signed cert). The bundled examples
+   already do this:
+
+```python
+from hq.client import HQClient
+
+with HQClient(host="https://localhost", port=3000, verify="cert.pem") as client:
+    ...
+```
+
+`verify` is forwarded to `requests`:
+- `verify="cert.pem"` — trust this specific (self-signed) cert. Use for dev.
+- `verify=True` (default) — trust the system CA bundle. Use for real, publicly-signed certs.
+- `verify=False` — disable verification entirely. **Insecure**, dev-only.
+
+Plain `http://` (no `verify`) continues to work unchanged when TLS is not configured.
