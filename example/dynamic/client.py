@@ -1,12 +1,17 @@
+import os
 import time
-from pathlib import Path
 from functools import partial
 from hq.client import HQClient
 
-# Trust the self-signed dev cert (repo-root/cert.pem). This absolute path is
-# captured by cloudpickle when the task below is serialized, so the worker that
-# re-runs the task (on the same machine, in dev) resolves it too.
-CA_CERT = str(Path(__file__).resolve().parents[2] / "cert.pem")
+# Connection + TLS config from the environment (defaults to plain HTTP). These
+# values are captured by cloudpickle when the task below is serialized, so the
+# worker that re-runs the task uses the same connection settings:
+#   HQ_HOST          -> server host incl. scheme (default "http://localhost")
+#   HQ_PORT          -> server port (default 3000)
+#   HQ_CLIENT_CACERT -> path to the CA/cert that verifies the server's TLS cert
+HOST = os.environ.get("HQ_HOST", "http://localhost")
+PORT = int(os.environ.get("HQ_PORT", "3000"))
+VERIFY = os.environ.get("HQ_CLIENT_CACERT")
 
 
 def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
@@ -21,7 +26,7 @@ def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
     i *= 2
     if i < 10:
         # if smaller than 10, resubmit and don't do anything
-        with HQClient(host="https://localhost", port=3000, verify=CA_CERT) as client:
+        with HQClient(host=HOST, port=PORT, verify=VERIFY) as client:
             print(f"resubmitting with {i=}...")
             client.submit(partial(make_i_larger_than_ten, i, retry=retry + 1))
     else:
@@ -30,6 +35,6 @@ def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
 
 
 if __name__ == "__main__":
-    with HQClient(host="https://localhost", port=3000, verify=CA_CERT) as client:
+    with HQClient(host=HOST, port=PORT, verify=VERIFY) as client:
         task_ids = client.map(partial(make_i_larger_than_ten, retry=0), range(1, 11))
         print(f"[map] Task IDs: {task_ids}")

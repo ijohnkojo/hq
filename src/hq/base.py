@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import requests
 
-#base class for all HQ connections
-# it essentially remembers the host and port of the HQ server and provides a way to ping the server
-# and to get the URL of the server
-# it also remembers the TLS verification configuration (None / True -> verify against the system CA bundle (real, public certs), "<path>" -> verify against this CA bundle / self-signed cert (dev), False -> disable verification entirely (INSECURE; dev only))
+
 class HQBaseConnection:
     __slots__ = ("host", "port", "verify")
 

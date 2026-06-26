@@ -6,7 +6,6 @@ type Immutable<T> = {
   readonly [K in keyof T]: Immutable<T[K]>;
 };
 
-// a type that represents the configuration of the server
 type Config = {
   server: {
     name: string;
@@ -22,7 +21,6 @@ type Config = {
   };
 };
 
-// the configuration of the server
 export const config: Immutable<Config> = {
   server: {
     // global name of this server (for logging)

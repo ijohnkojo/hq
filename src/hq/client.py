@@ -3,16 +3,16 @@ from __future__ import annotations
 import requests
 import typing as tp
 
-from hq.shared.base import HQBaseConnection
-from hq.shared.util import serialize_obj
-from hq.shared.types import TaskID, TaskStatus, AddTaskDict
+from hq.base import HQBaseConnection
+from hq.util import serialize_obj
+from hq.types import TaskID, TaskStatus, AddTaskDict
 
 
 def _default_task_name(fun: tp.Callable) -> str:
     return getattr(fun, "__name__", fun.__class__.__name__)
 
 
-# client inherits from HQBaseConnection and extends with `submit` and `map`
+# client extends with `submit` and `map`
 class HQClient(HQBaseConnection):
     def submit(
         self,

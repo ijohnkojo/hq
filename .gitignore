@@ -1,34 +1,18 @@
-# Python
 .python-version
+uv.lock
 .venv
 .ruff_cache
 __pycache__
-*.py[cod]
-.pytest_cache
-.mypy_cache
-
-# Node / Bun
 node_modules
 bun.lock
-
-# Lockfiles
-uv.lock
-
-# Data
 *.rdb
 
-# Secrets / certificates
+# TLS certificates
 *.pem
 *.key
 *.crt
-.env
-.env.*
 
-# Docs and graphify output
-# ignore the docs and the graphify dir
+# Local-only (not part of the project)
 docs/
 graphify-out/
-
-# Editor / OS
 .vscode/
-.DS_Store

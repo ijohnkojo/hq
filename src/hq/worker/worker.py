@@ -10,7 +10,7 @@ import subprocess
 import os
 import typing as tp
 
-from hq.shared.base import HQBaseConnection
+from hq.base import HQBaseConnection
 
 
 # client extends with `fetch`

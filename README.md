@@ -29,7 +29,7 @@ docker run -p 6379:6379 --ulimit memlock=-1 docker.dragonflydb.io/dragonflydb/dr
 2. start the queue server with `bun`:
 
 ```shell
-bun run hq_server/server.ts
+bun run typescript/server.ts
 ```
 
 3. submit some tasks with `uv`:
@@ -62,14 +62,17 @@ openssl req -x509 -newkey rsa:4096 -nodes \
 2. Start the server with the key/cert env vars so Bun serves HTTPS:
 
 ```shell
-HQ_SERVER_KEY_FILE=key.pem HQ_SERVER_CERT_FILE=cert.pem bun run hq_server/server.ts
+HQ_SERVER_KEY_FILE=key.pem HQ_SERVER_CERT_FILE=cert.pem bun run typescript/server.ts
 ```
 
 The server logs `Found TLS files ...` and serves at `https://localhost:3000`.
 
-3. Point the client/worker at `https://` and tell them which certificate to trust
-   via `verify` (the path to the CA bundle / self-signed cert). The bundled examples
-   already do this:
+3. Point the client/worker at `https://` and tell them which certificate to trust.
+   The `HQClient`/`HQWorker` constructors take a `verify` argument that is forwarded
+   to `requests`:
+   - `verify="cert.pem"` — trust this specific (self-signed) cert. Use for dev.
+   - `verify=True` (default) — trust the system CA bundle. Use for real, publicly-signed certs.
+   - `verify=False` — disable verification entirely. **Insecure**, dev-only.
 
 ```python
 from hq.client import HQClient
@@ -78,9 +81,16 @@ with HQClient(host="https://localhost", port=3000, verify="cert.pem") as client:
     ...
 ```
 
-`verify` is forwarded to `requests`:
-- `verify="cert.pem"` — trust this specific (self-signed) cert. Use for dev.
-- `verify=True` (default) — trust the system CA bundle. Use for real, publicly-signed certs.
-- `verify=False` — disable verification entirely. **Insecure**, dev-only.
+   The bundled examples read these from environment variables (so no paths are
+   hard-coded), defaulting to plain HTTP:
+
+```shell
+HQ_HOST=https://localhost HQ_CLIENT_CACERT=cert.pem uv run example/simple/client.py
+HQ_HOST=https://localhost HQ_CLIENT_CACERT=cert.pem uv run example/simple/worker.py
+```
+
+   - `HQ_HOST` — server host incl. scheme (default `http://localhost`)
+   - `HQ_PORT` — server port (default `3000`)
+   - `HQ_CLIENT_CACERT` — path to the CA/cert verifying the server (unset → system CA bundle)
 
 Plain `http://` (no `verify`) continues to work unchanged when TLS is not configured.

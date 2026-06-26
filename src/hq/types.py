@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import typing as tp
 
-# These types reflect the types defined in the hq_server/server.ts implementation
+# These types reflect the types defined in the typescript/server.ts implementation
 
-TaskID: tp.TypeAlias = int # a type alias for the task id
+TaskID: tp.TypeAlias = int
 
 
 class AddTaskDict(tp.TypedDict):

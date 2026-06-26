@@ -6,7 +6,7 @@ import resource
 import sys
 import time
 
-from hq.shared.util import deserialize_obj
+from hq.util import deserialize_obj
 
 
 def main() -> None:
