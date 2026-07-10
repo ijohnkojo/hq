@@ -32,19 +32,21 @@ docker run -p 6379:6379 --ulimit memlock=-1 docker.dragonflydb.io/dragonflydb/dr
 bun run typescript/server.ts
 ```
 
-3. submit some tasks with `uv`:
+3. submit some tasks with `uv` (prints a unique queue name):
 
 ```shell
 uv run example/simple/client.py
 ```
 
-4. start one or more workers to consume those tasks with `uv`:
+4. start one or more workers on that queue:
 
 ```shell
-uv run example/simple/worker.py
+uv run example/simple/worker.py <queue-from-client-output>
 ```
 
 Once all tasks are finished redis, the server and the worker(s) can be shut down with ctrl+c.
+
+For an end-to-end smoke test (including HTTPS), use `./scripts/testrun.sh`.
 
 ## TLS (HTTPS)
 
@@ -76,21 +78,13 @@ The server logs `Found TLS files ...` and serves at `https://localhost:3000`.
 
 ```python
 from hq.client import HQClient
+from hq.util import generate_queue_name
 
-with HQClient(host="https://localhost", port=3000, verify="cert.pem") as client:
+queue = generate_queue_name()
+with HQClient(
+    host="https://localhost", port=3000, queue=queue, verify="cert.pem"
+) as client:
     ...
 ```
-
-   The bundled examples read these from environment variables (so no paths are
-   hard-coded), defaulting to plain HTTP:
-
-```shell
-HQ_HOST=https://localhost HQ_VERIFY=cert.pem uv run example/simple/client.py
-HQ_HOST=https://localhost HQ_VERIFY=cert.pem uv run example/simple/worker.py
-```
-
-   - `HQ_HOST` — server host incl. scheme (default `http://localhost`)
-   - `HQ_PORT` — server port (default `3000`)
-   - `HQ_VERIFY` — path to the CA/cert verifying the server (unset → system CA bundle)
 
 Plain `http://` (no `verify`) continues to work unchanged when TLS is not configured.

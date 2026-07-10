@@ -1,21 +1,21 @@
-import os
+import sys
+
 from hq.worker import HQWorker, run
-from dotenv import load_dotenv
-from pathlib import Path
 
-EXAMPLE_DIR = Path(__file__).resolve().parents[1]
-env = EXAMPLE_DIR / ".env"
-load_dotenv(env if env.is_file() else EXAMPLE_DIR / ".env.example")
+HOST = "http://localhost"
+PORT = 3000
 
-# Connection + TLS config from the environment (defaults to plain HTTP):
-#   HQ_HOST          -> server host incl. scheme (default "http://localhost")
-#   HQ_PORT          -> server port (default 3000)
-#   HQ_VERIFY -> path to the CA/cert that verifies the server's TLS cert;
-#                       unset -> requests' default verification (system CA bundle)
-HOST = os.getenv("HQ_HOST", "http://localhost")
-PORT = int(os.getenv("HQ_PORT", "3000"))
-VERIFY = os.getenv("HQ_VERIFY") # it defaults to True if not set
 
 if __name__ == "__main__":
-    worker = HQWorker(host=HOST, port=PORT, fetch_n_tasks=3, verify=VERIFY)
+    if len(sys.argv) < 2:
+        raise SystemExit("usage: uv run example/dynamic/worker.py <queue>")
+
+    queue = sys.argv[1]
+    host = sys.argv[2] if len(sys.argv) > 2 else HOST
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else PORT
+    verify = sys.argv[4] if len(sys.argv) > 4 else None
+
+    worker = HQWorker(
+        host=host, port=port, queue=queue, fetch_n_tasks=3, verify=verify
+    )
     run(worker)

@@ -17,22 +17,14 @@ def _default_task_name(fun: tp.Callable) -> str:
 class HQClient(HQBaseConnection):
     __slots__ = ("host", "port", "queue", "verify")
 
-# I am adding a queue name to the client, so that the user can specify a different queue name for each client.
     def __init__(
-        self, 
-        host, 
-        port,
-        *, 
-        queue: str, 
+        self,
+        host: str,
+        port: int,
+        *,
+        queue: str,
         verify: bool | str | None = None,
     ) -> None:
-        if not queue.strip():
-            raise ValueError("queue must be a non-empty string")
-        if queue == "default": # default is not allowed for shared deployments.
-            raise ValueError(
-                "queue='default' is not allowed on shared deployments. "
-                "Use generate_queue_name() or set HQ_QUEUE."
-            )
         super().__init__(host, port, verify=verify)
         self.queue = queue
 
@@ -43,7 +35,7 @@ class HQClient(HQBaseConnection):
         name: str | None = None,
         queue: str | None = None,
     ) -> TaskID:
-        q = queue or self.queue  # if queue is not provided, use the client's queue(in most cases, the clients queue should be used, unless the user wants to submit to a different queue)
+        q = queue or self.queue
         task = serialize_obj(fun)
 
         name = name if name is not None else _default_task_name(fun)

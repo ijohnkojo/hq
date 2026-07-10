@@ -9,7 +9,6 @@ import socket
 import subprocess
 import os
 import typing as tp
-import uuid
 
 from hq.base import HQBaseConnection
 
@@ -22,13 +21,10 @@ class HQWorker(HQBaseConnection):
         self,
         host: str,
         port: int,
-        # unique name, needs to be unique among all existing workers
-        worker_id: str | None = None,
-        # number of tasks to fetch in a single API request
-        fetch_n_tasks: int = 1,
-        queue: str = "default", # ensure different queues names; force the user to provide a differnt unique name() uuad 
         *,
-        # TLS server-cert verification, forwarded to `requests` (see HQBaseConnection)
+        queue: str,
+        worker_id: str | None = None,
+        fetch_n_tasks: int = 1,
         verify: bool | str | None = None,
     ) -> None:
         super().__init__(host, port, verify=verify)
@@ -41,8 +37,6 @@ class HQWorker(HQBaseConnection):
         if fetch_n_tasks < 1:
             raise ValueError(f"{fetch_n_tasks=} needs to be larger than zero")
         self.fetch_n_tasks = fetch_n_tasks
-        if queue is None:
-            raise ValueError("queue must be set (e.g. export HQ_QUEUE from the client run)")
         if len(queue.strip()) == 0:
             raise ValueError(f"{queue=} can't be empty")
         self.queue = queue.strip()
