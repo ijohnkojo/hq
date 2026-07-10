@@ -2,17 +2,22 @@ import os
 import time
 from functools import partial
 from hq.client import HQClient
+from dotenv import load_dotenv
+from pathlib import Path
+
+EXAMPLE_DIR = Path(__file__).resolve().parents[1]
+env = EXAMPLE_DIR / ".env"
+load_dotenv(env if env.is_file() else EXAMPLE_DIR / ".env.example")
 
 # Connection + TLS config from the environment (defaults to plain HTTP). These
 # values are captured by cloudpickle when the task below is serialized, so the
 # worker that re-runs the task uses the same connection settings:
 #   HQ_HOST          -> server host incl. scheme (default "http://localhost")
 #   HQ_PORT          -> server port (default 3000)
-#   HQ_CLIENT_CACERT -> path to the CA/cert that verifies the server's TLS cert
-HOST = os.environ.get("HQ_HOST", "http://localhost")
-PORT = int(os.environ.get("HQ_PORT", "3000"))
-VERIFY = os.environ.get("HQ_CLIENT_CACERT")
-
+#   HQ_VERIFY -> path to the CA/cert that verifies the server's TLS cert
+HOST = os.getenv("HQ_HOST", "http://localhost")
+PORT = int(os.getenv("HQ_PORT", "3000"))
+VERIFY = os.getenv("HQ_VERIFY") # it defaults to True if not set
 
 def make_i_larger_than_ten(i: int, retry: int) -> dict | None:
     """

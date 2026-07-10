@@ -85,12 +85,12 @@ with HQClient(host="https://localhost", port=3000, verify="cert.pem") as client:
    hard-coded), defaulting to plain HTTP:
 
 ```shell
-HQ_HOST=https://localhost HQ_CLIENT_CACERT=cert.pem uv run example/simple/client.py
-HQ_HOST=https://localhost HQ_CLIENT_CACERT=cert.pem uv run example/simple/worker.py
+HQ_HOST=https://localhost HQ_VERIFY=cert.pem uv run example/simple/client.py
+HQ_HOST=https://localhost HQ_VERIFY=cert.pem uv run example/simple/worker.py
 ```
 
    - `HQ_HOST` — server host incl. scheme (default `http://localhost`)
    - `HQ_PORT` — server port (default `3000`)
-   - `HQ_CLIENT_CACERT` — path to the CA/cert verifying the server (unset → system CA bundle)
+   - `HQ_VERIFY` — path to the CA/cert verifying the server (unset → system CA bundle)
 
 Plain `http://` (no `verify`) continues to work unchanged when TLS is not configured.

@@ -9,13 +9,14 @@ import socket
 import subprocess
 import os
 import typing as tp
+import uuid
 
 from hq.base import HQBaseConnection
 
 
 # client extends with `fetch`
 class HQWorker(HQBaseConnection):
-    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue")
+    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue", "verify")
 
     def __init__(
         self,
@@ -25,7 +26,7 @@ class HQWorker(HQBaseConnection):
         worker_id: str | None = None,
         # number of tasks to fetch in a single API request
         fetch_n_tasks: int = 1,
-        queue: str = "default",
+        queue: str = "default", # ensure different queues names; force the user to provide a differnt unique name() uuad 
         *,
         # TLS server-cert verification, forwarded to `requests` (see HQBaseConnection)
         verify: bool | str | None = None,
@@ -40,9 +41,11 @@ class HQWorker(HQBaseConnection):
         if fetch_n_tasks < 1:
             raise ValueError(f"{fetch_n_tasks=} needs to be larger than zero")
         self.fetch_n_tasks = fetch_n_tasks
+        if queue is None:
+            raise ValueError("queue must be set (e.g. export HQ_QUEUE from the client run)")
         if len(queue.strip()) == 0:
             raise ValueError(f"{queue=} can't be empty")
-        self.queue = queue
+        self.queue = queue.strip()
 
     def heartbeat(self) -> None:
         response = requests.get(

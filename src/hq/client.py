@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import requests
 import typing as tp
+import hashlib
 
 from hq.base import HQBaseConnection
 from hq.util import serialize_obj
@@ -14,19 +15,41 @@ def _default_task_name(fun: tp.Callable) -> str:
 
 # client extends with `submit` and `map`
 class HQClient(HQBaseConnection):
+    __slots__ = ("host", "port", "queue", "verify")
+
+# I am adding a queue name to the client, so that the user can specify a different queue name for each client.
+    def __init__(
+        self, 
+        host, 
+        port,
+        *, 
+        queue: str, 
+        verify: bool | str | None = None,
+    ) -> None:
+        if not queue.strip():
+            raise ValueError("queue must be a non-empty string")
+        if queue == "default": # default is not allowed for shared deployments.
+            raise ValueError(
+                "queue='default' is not allowed on shared deployments. "
+                "Use generate_queue_name() or set HQ_QUEUE."
+            )
+        super().__init__(host, port, verify=verify)
+        self.queue = queue
+
     def submit(
         self,
         fun: tp.Callable[[], tp.Any],
         *,
         name: str | None = None,
-        queue: str = "default",
+        queue: str | None = None,
     ) -> TaskID:
+        q = queue or self.queue  # if queue is not provided, use the client's queue(in most cases, the clients queue should be used, unless the user wants to submit to a different queue)
         task = serialize_obj(fun)
 
         name = name if name is not None else _default_task_name(fun)
 
         body = [
-            AddTaskDict({"task": task, "name": name, "queue": queue, "heavyKey": None})
+            AddTaskDict({"task": task, "name": name, "queue": q, "heavyKey": None})
         ]
 
         response = requests.post(f"{self.url}/tasks", json=body, verify=self.verify)
@@ -43,15 +66,16 @@ class HQClient(HQBaseConnection):
         args: tp.Iterable[tp.Any],
         *,
         name: str | None = None,
-        queue: str = "default",
+        queue: str | None = None,
     ) -> tp.List[TaskID]:
+        q = queue or self.queue
         # First we serialize the fun and send it as the 'heavy' payload once
         # Then, we distribute the args each with a pointer to the heavy payload
 
         # heavy payload
         heavy = serialize_obj(fun)
-        # is this sufficient/ok to use `id`?
-        heavy_key = f"mapfun:{id(fun)}"
+        # use sha256 to avoid collisions
+        heavy_key = f"mapfun:{hashlib.sha256(heavy.encode()).hexdigest()}" 
         name = name if name is not None else _default_task_name(fun)
         body = {"task": heavy, "heavyKey": heavy_key}
         response = requests.post(f"{self.url}/heavy", json=body, verify=self.verify)
@@ -64,7 +88,7 @@ class HQClient(HQBaseConnection):
                 {
                     "task": serialize_obj(arg),
                     "name": name,
-                    "queue": queue,
+                    "queue": q,
                     "heavyKey": heavy_key,
                 }
             )
