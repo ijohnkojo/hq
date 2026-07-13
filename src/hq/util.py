@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import cloudpickle
 import typing as tp
+import uuid
 
 
 def serialize_obj(obj: tp.Any) -> str:
@@ -18,3 +19,7 @@ def deserialize_obj(obj: str | None) -> tp.Any:
         raise TypeError(f"{obj=} needs to be a string at this point")
 
     return cloudpickle.loads(base64.b64decode(obj.encode("utf-8"), validate=True))
+
+
+def generate_queue_name() -> str:
+    return str(uuid.uuid7())

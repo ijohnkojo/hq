@@ -6,3 +6,18 @@ __pycache__
 node_modules
 bun.lock
 *.rdb
+.env
+.env.example
+*.log
+/example/.env
+
+# TLS certificates
+*.pem
+*.key
+*.crt
+
+# Local-only (not part of the project)
+docs/
+graphify-out/
+.vscode/
+scripts/

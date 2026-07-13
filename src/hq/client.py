@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import requests
 import typing as tp
+import hashlib
 
 from hq.base import HQBaseConnection
 from hq.util import serialize_obj
@@ -14,22 +15,36 @@ def _default_task_name(fun: tp.Callable) -> str:
 
 # client extends with `submit` and `map`
 class HQClient(HQBaseConnection):
+    __slots__ = ("host", "port", "queue", "verify")
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        queue: str,
+        verify: bool | str | None = None,
+    ) -> None:
+        super().__init__(host, port, verify=verify)
+        self.queue = queue
+
     def submit(
         self,
         fun: tp.Callable[[], tp.Any],
         *,
         name: str | None = None,
-        queue: str = "default",
+        queue: str | None = None,
     ) -> TaskID:
+        q = queue or self.queue
         task = serialize_obj(fun)
 
         name = name if name is not None else _default_task_name(fun)
 
         body = [
-            AddTaskDict({"task": task, "name": name, "queue": queue, "heavyKey": None})
+            AddTaskDict({"task": task, "name": name, "queue": q, "heavyKey": None})
         ]
 
-        response = requests.post(f"{self.url}/tasks", json=body)
+        response = requests.post(f"{self.url}/tasks", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(f"Failed to submit task, got {response.status_code}")
 
@@ -43,18 +58,19 @@ class HQClient(HQBaseConnection):
         args: tp.Iterable[tp.Any],
         *,
         name: str | None = None,
-        queue: str = "default",
+        queue: str | None = None,
     ) -> tp.List[TaskID]:
+        q = queue or self.queue
         # First we serialize the fun and send it as the 'heavy' payload once
         # Then, we distribute the args each with a pointer to the heavy payload
 
         # heavy payload
         heavy = serialize_obj(fun)
-        # is this sufficient/ok to use `id`?
-        heavy_key = f"mapfun:{id(fun)}"
+        # use sha256 to avoid collisions
+        heavy_key = f"mapfun:{hashlib.sha256(heavy.encode()).hexdigest()}" 
         name = name if name is not None else _default_task_name(fun)
         body = {"task": heavy, "heavyKey": heavy_key}
-        response = requests.post(f"{self.url}/heavy", json=body)
+        response = requests.post(f"{self.url}/heavy", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(f"Failed to pre-submit {fun}, got {response.status_code}")
 
@@ -64,13 +80,13 @@ class HQClient(HQBaseConnection):
                 {
                     "task": serialize_obj(arg),
                     "name": name,
-                    "queue": queue,
+                    "queue": q,
                     "heavyKey": heavy_key,
                 }
             )
             for arg in args
         ]
-        response = requests.post(f"{self.url}/tasks", json=body)
+        response = requests.post(f"{self.url}/tasks", json=body, verify=self.verify)
         if response.status_code != 200:
             raise Exception(
                 f"Failed to submit tasks that map {fun} over {args}, got {response.status_code}"
@@ -86,6 +102,7 @@ class HQClient(HQBaseConnection):
         response = requests.post(
             f"{self.url}/tasks/status",
             json={"taskIds": ids},
+            verify=self.verify,
         )
         response.raise_for_status()
 

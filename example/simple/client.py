@@ -1,5 +1,11 @@
+import sys
 import time
+
 from hq.client import HQClient
+from hq.util import generate_queue_name
+
+HOST = "http://localhost"
+PORT = 3000
 
 
 def my_function() -> str:
@@ -17,8 +23,16 @@ def my_faulty_fun() -> None:
 
 
 if __name__ == "__main__":
-    with HQClient(host="http://localhost", port=3000) as client:
-        # submit some tasks
+    # Pick a unique queue name so multiple users can share one HQ server.
+    queue = sys.argv[1] if len(sys.argv) > 1 else generate_queue_name()
+    host = sys.argv[2] if len(sys.argv) > 2 else HOST
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else PORT
+    verify = sys.argv[4] if len(sys.argv) > 4 else None
+
+    print(f"queue={queue}")
+    print(f"start worker: uv run example/simple/worker.py {queue}")
+
+    with HQClient(host=host, port=port, queue=queue, verify=verify) as client:
         task_id = client.submit(my_function)
         print(f"[submit] Task ID: {task_id}")
 
@@ -28,7 +42,6 @@ if __name__ == "__main__":
         faulty_task_id = client.submit(my_faulty_fun)
         print(f"[submit] Faulty Task ID: {faulty_task_id}")
 
-        # check their status
         while True:
             time.sleep(3)
             print("\nChecking tasks status:")
@@ -40,6 +53,5 @@ if __name__ == "__main__":
                 statuses.append(status)
                 print(f"[status] Task ID: {_id}, Status: {checked}")
 
-            # break if all of them have been finished
             if all(status in {"success", "error", "lost"} for status in statuses):
                 break

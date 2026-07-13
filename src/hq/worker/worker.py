@@ -15,19 +15,19 @@ from hq.base import HQBaseConnection
 
 # client extends with `fetch`
 class HQWorker(HQBaseConnection):
-    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue")
+    __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue", "verify")
 
     def __init__(
         self,
         host: str,
         port: int,
-        # unique name, needs to be unique among all existing workers
+        *,
+        queue: str,
         worker_id: str | None = None,
-        # number of tasks to fetch in a single API request
         fetch_n_tasks: int = 1,
-        queue: str = "default",
+        verify: bool | str | None = None,
     ) -> None:
-        super().__init__(host, port)
+        super().__init__(host, port, verify=verify)
         if worker_id is None:
             self.worker_id = f"{socket.gethostname()}-{os.getpid()}"
         else:
@@ -39,15 +39,18 @@ class HQWorker(HQBaseConnection):
         self.fetch_n_tasks = fetch_n_tasks
         if len(queue.strip()) == 0:
             raise ValueError(f"{queue=} can't be empty")
-        self.queue = queue
+        self.queue = queue.strip()
 
     def heartbeat(self) -> None:
-        response = requests.get(f"{self.url}/status/{self.worker_id}")
+        response = requests.get(
+            f"{self.url}/status/{self.worker_id}", verify=self.verify
+        )
         response.raise_for_status()
 
     def _fetch_tasks(self) -> dict:
         response = requests.get(
-            f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}"
+            f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}",
+            verify=self.verify,
         )
         response.raise_for_status()
         # pairs of taskIds and task+heavy buf [[], ...]
@@ -85,7 +88,9 @@ def _process_loop(worker: HQWorker) -> None:
                     **info,
                 }
                 response = requests.post(
-                    f"{worker.url}/tasks/status/{task_id}", json=status_body
+                    f"{worker.url}/tasks/status/{task_id}",
+                    json=status_body,
+                    verify=worker.verify,
                 )
                 response.raise_for_status()
 
