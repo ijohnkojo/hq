@@ -5,8 +5,7 @@ import json
 import resource
 import sys
 import time
-
-from hq.util import deserialize_obj
+from hq.util import serialize_obj,deserialize_obj
 
 
 def main() -> None:
@@ -48,6 +47,8 @@ def main() -> None:
                 "runtime": time.time() - start,
                 "peakRSS": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
             },
+            # IPC to parent only — parent writes this to the shared FS
+            "taskResult": serialize_obj(result),
         }
     except BaseException as error:
         result = error
@@ -62,6 +63,7 @@ def main() -> None:
         }
 
     # log the result
+    # results can be huge, so later I need to not log it, but for now it's fine
     print(
         f"Task {task_id} finished with '{info['taskStatus']}' (took {info['taskInfo']['runtime']}s): {result=}"
     )

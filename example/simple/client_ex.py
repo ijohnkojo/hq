@@ -1,5 +1,6 @@
 import time
 from collections import Counter
+from hq.util import load_result
 
 from hq.executor import HQExecutor
 
@@ -47,3 +48,21 @@ if __name__ == "__main__":
         print(f"done: {dict(counts)}  ({len(all_ids)} tasks)")
         for status, n in sorted(counts.items()):
             print(f"  {status}: {n}")
+        
+        # 
+        print("results:")
+        for tid, status in zip(all_ids, statuses):
+            if status is None:
+                print(f"  {tid}: missing status")
+                continue
+            if status["status"] == "success":
+                locator = status["info"]["resultPath"]
+                value = load_result(locator)
+                print(f"  {tid}: {value!r}  ({locator})")
+            elif status["status"] == "error":
+                err = status["info"] or {}
+                print(
+                    f"  {tid}: ERROR {err.get('errorType')}: {err.get('errorMessage')}"
+                )
+            else:
+                print(f"  {tid}: {status['status']}")

@@ -11,6 +11,7 @@ import os
 import typing as tp
 
 from hq.base import HQBaseConnection
+from hq.util import result_path, result_key
 
 
 # worker extends with `fetch`
@@ -83,11 +84,20 @@ def _process_loop(worker: HQWorker) -> None:
                 _, err = proc.communicate()
 
                 info = json.loads(err)
-
+                
+                # heavy payload: local FS only, I need to strip it from the info before HTTP posting
+                # Heavy payload stays on local FS — strip before HTTP status update
+                task_result = info.pop("taskResult", None)
+                if info.get("taskStatus") == "success" and task_result is not None:
+                    out = result_path(worker.queue, task_id)
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    out.write_text(task_result)  # base64 from serialize_obj
+                    info["taskInfo"]["resultPath"] = result_key(worker.queue, task_id)
+                
                 # update task status in the queue
                 status_body = {
                     "workerId": worker.worker_id,
-                    **info,
+                    **info,  # taskStatus + taskInfo only — no taskResult
                 }
                 response = requests.post(
                     f"{worker.url}/tasks/status/{task_id}",
