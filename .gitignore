@@ -24,3 +24,4 @@ scripts/
 example/utils
 example/corrections.json
 example/ttbar_analysis_pipeline.ipynb
+example/nanoaod_inputs.json
