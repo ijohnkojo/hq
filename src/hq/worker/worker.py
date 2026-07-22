@@ -13,7 +13,7 @@ import typing as tp
 from hq.base import HQBaseConnection
 
 
-# client extends with `fetch`
+# worker extends with `fetch`
 class HQWorker(HQBaseConnection):
     __slots__ = ("host", "port", "worker_id", "fetch_n_tasks", "queue", "verify")
 
@@ -29,7 +29,7 @@ class HQWorker(HQBaseConnection):
     ) -> None:
         super().__init__(host, port, verify=verify)
         if worker_id is None:
-            self.worker_id = f"{socket.gethostname()}-{os.getpid()}"
+            self.worker_id = f"{socket.gethostname()}-{os.getpid()}" # worker id is the hostname and pid, unless specified from the params
         else:
             if len(worker_id.strip()) == 0:
                 raise ValueError(f"{worker_id=} can't be empty")
@@ -43,7 +43,7 @@ class HQWorker(HQBaseConnection):
 
     def heartbeat(self) -> None:
         response = requests.get(
-            f"{self.url}/status/{self.worker_id}", verify=self.verify
+            f"{self.url}/status/{self.worker_id}", verify=self.verify # so essentially in this request we are sending the worker id to the server to record in the redis db, through the url  
         )
         response.raise_for_status()
 
@@ -68,6 +68,8 @@ def _process_loop(worker: HQWorker) -> None:
 
             ids = ids_and_payloads["taskIds"]
             payloads = ids_and_payloads["payloads"]
+            
+            # here we are iterating over the task ids and payloads, and for each task we are executing the task as a subprocess, and then updating the task status in the queue
             for task_id, payload in zip(ids, payloads):
                 executable = Path(__file__).parent / "exe.py"
                 proc = subprocess.Popen(
