@@ -22,7 +22,6 @@ docs/stuff/
 docs/plans/
 graphify-out/
 .vscode/
-scripts/
 example/nanoaod_inputs.json
 
 example/histograms/
