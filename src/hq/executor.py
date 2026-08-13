@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import multiprocessing
+import os
+import signal
 import time
 import typing as tp
 
@@ -19,6 +21,10 @@ def _run_worker(
     verify: bool | str | None,
     fetch_n_tasks: int,
 ) -> None:
+    # Own process group so HQExecutor can kill this worker and its nested
+    # heartbeat/process children together (Python "daemon" children can otherwise
+    # outlive a SIGTERM'd parent and keep polling the queue).
+    os.setsid()
     worker = HQWorker(
         host=host,
         port=port,
@@ -95,20 +101,34 @@ class HQExecutor:
                     self.verify,
                     self.fetch_n_tasks,
                 ),
+                # Must be non-daemon: run() spawns heartbeat/process children.
+                # Teardown uses killpg on the worker's process group instead.
                 daemon=False,
             )
             proc.start()
             self._worker_procs.append(proc)
 
     def _stop_workers(self) -> None:
+        """Tear down managed workers promptly (process group + SIGKILL)."""
         for proc in self._worker_procs:
-            if proc.is_alive():
-                proc.terminate()
+            if not proc.is_alive() or proc.pid is None:
+                continue
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError, OSError):
+                if proc.is_alive():
+                    proc.terminate()
         for proc in self._worker_procs:
-            proc.join(timeout=5)
+            proc.join(timeout=1)
         for proc in self._worker_procs:
-            if proc.is_alive():
-                proc.kill()
+            if not proc.is_alive() or proc.pid is None:
+                continue
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError, OSError):
+                if proc.is_alive():
+                    proc.kill()
+            proc.join(timeout=1)
         self._worker_procs.clear()
 
     def submit(
@@ -163,6 +183,19 @@ class HQExecutor:
     ) -> tuple[TaskStatus | None, ...]:
         task_ids = self.map(fun, args, name=name, queue=queue)
         return self.wait(*task_ids, poll_interval=poll_interval)
+    
+    def gather(self, *task_ids: int) -> tuple[tp.Any, ...]:
+        self._require_active()
+        return self.client.gather(*task_ids)
+
+    def wait_and_gather(
+        self,
+        *task_ids: int,
+        poll_interval: float = 3.0,
+    ) -> tuple[tp.Any, ...]:
+        self._require_active()
+        self.wait(*task_ids, poll_interval=poll_interval)
+        return self.gather(*task_ids)
 
     @staticmethod
     def _is_terminal(status: TaskStatus | None) -> bool:

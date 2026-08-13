@@ -7,7 +7,9 @@ import requests
 import time
 import socket
 import subprocess
+import sys
 import os
+import tempfile
 import typing as tp
 
 from hq.base import HQBaseConnection
@@ -23,9 +25,9 @@ class HQWorker(HQBaseConnection):
         host: str,
         port: int,
         *,
-        queue: str,
         worker_id: str | None = None,
         fetch_n_tasks: int = 1,
+        queue: str,
         verify: bool | str | None = None,
     ) -> None:
         super().__init__(host, port, verify=verify)
@@ -52,38 +54,81 @@ class HQWorker(HQBaseConnection):
         response = requests.get(
             f"{self.url}/tasks/fetch/{self.worker_id}/{self.queue}/{self.fetch_n_tasks}",
             verify=self.verify,
-        )
+        ) # so this response is a json object with taskIds and payloads
         response.raise_for_status()
         # pairs of taskIds and task+heavy buf [[], ...]
         return response.json()
 
 
+def _parse_exe_ipc(err: str, *, task_id: int, returncode: int) -> dict:
+    """exe.py prints IPC JSON as the last stderr line (warnings may precede it)."""
+    lines = [ln for ln in err.splitlines() if ln.strip()]
+    if not lines:
+        raise RuntimeError(
+            f"task {task_id} produced no stderr IPC (exit={returncode})"
+        )
+    try:
+        return json.loads(lines[-1])
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"task {task_id} stderr IPC is not JSON (exit={returncode}): "
+            f"{lines[-1][:200]!r}"
+        ) from exc
+
+
 def _process_loop(worker: HQWorker) -> None:
     while True:
         with worker:
-            print(f"Trying to fetch {worker.fetch_n_tasks} task(s)...")
             ids_and_payloads = worker._fetch_tasks()
-            if len(ids_and_payloads) == 0:
-                print("No tasks currently exist, continue trying...")
+            # Response is always a dict with keys; emptiness is taskIds, not len(dict).
+            ids = ids_and_payloads.get("taskIds") or []
+            payloads = ids_and_payloads.get("payloads") or []
+            if len(ids) == 0:
+                # Idle pull — stay quiet (long-lived Condor workers poll forever).
+                time.sleep(1)
                 continue
 
-            ids = ids_and_payloads["taskIds"]
-            payloads = ids_and_payloads["payloads"]
-            
+            print(f"Fetched {len(ids)} task(s) (asked for up to {worker.fetch_n_tasks})")
+
             # here we are iterating over the task ids and payloads, and for each task we are executing the task as a subprocess, and then updating the task status in the queue
             for task_id, payload in zip(ids, payloads):
                 executable = Path(__file__).parent / "exe.py"
-                proc = subprocess.Popen(
-                    ["python", str(executable), task_id, json.dumps(payload)],
-                    stdout=None,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
+                # Pass payload via temp file to avoid OS ARG_MAX limits on large coffea closures
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    suffix=".hq-payload.json",
+                    delete=False,
+                    encoding="utf-8",
+                ) as tmp:
+                    json.dump(payload, tmp)
+                    payload_path = tmp.name
+                try:
+                    env = os.environ.copy()
+                    # Ensure task subprocesses can import hq even if only sys.path
+                    # was patched in the client (notebook) without PYTHONPATH.
+                    src_root = str(Path(__file__).resolve().parents[2])
+                    prev = env.get("PYTHONPATH", "")
+                    if src_root not in prev.split(os.pathsep):
+                        env["PYTHONPATH"] = (
+                            src_root if not prev else src_root + os.pathsep + prev
+                        )
+                    proc = subprocess.Popen(
+                        [
+                            sys.executable,
+                            str(executable),
+                            str(task_id),
+                            payload_path,
+                        ],
+                        stdout=None,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        env=env,
+                    )
+                    _, err = proc.communicate()
+                finally:
+                    Path(payload_path).unlink(missing_ok=True)
 
-                # wait for proc to finish and communicate err that contains execution information
-                _, err = proc.communicate()
-
-                info = json.loads(err)
+                info = _parse_exe_ipc(err, task_id=task_id, returncode=proc.returncode)
                 
                 # heavy payload: local FS only, I need to strip it from the info before HTTP posting
                 # Heavy payload stays on local FS — strip before HTTP status update

@@ -18,10 +18,9 @@ bun.lock
 
 # Local-only (not part of the project)
 docs/
+docs/stuff/
+docs/plans/
 graphify-out/
 .vscode/
 scripts/
-example/utils
-example/corrections.json
-example/ttbar_analysis_pipeline.ipynb
 example/nanoaod_inputs.json
