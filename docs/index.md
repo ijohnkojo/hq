@@ -48,8 +48,7 @@ Standing hq up and keeping it healthy.
 |------|---------------|
 | [`example/simple/client_ex.py`](../example/simple/client_ex.py) | Minimal `HQExecutor`: submit, map, wait |
 | [`scripts/testrun.sh`](../scripts/testrun.sh) | One-command end-to-end smoke over HTTPS |
-| [`example/coffea_hq_runner_smoke.py`](../example/coffea_hq_runner_smoke.py) | Smallest real coffea `Runner` job on hq |
-| [`example/agc_hq_vs_futures.py`](../example/agc_hq_vs_futures.py) | AGC subset: hq vs FuturesExecutor, histogram equality check |
-| [`example/ttbar_analysis_pipeline.ipynb`](../example/ttbar_analysis_pipeline.ipynb) | Full AGC ttbar notebook wired for hq (`USE_HQ=True`) |
+| [`example/coffea_hq_smoke.py`](../example/coffea_hq_smoke.py) | `CoffeaHQExecutor` smoke with fake items (no ROOT) |
+| `agc-hq` repo (sibling checkout, e.g. `../agc-hq`) | Full AGC ttbar pipeline on hq: notebooks, `agc_hq_vs_futures.py` comparison, `Runner` smoke |
 
 

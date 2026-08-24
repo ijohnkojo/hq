@@ -98,14 +98,21 @@ not by the executor.
 
 ## Working examples
 
-- [`example/agc_hq_vs_futures.py`](../../example/agc_hq_vs_futures.py) —
-  AGC ttbar subset, Futures vs hq, asserts histograms match
-- [`example/ttbar_analysis_pipeline.ipynb`](../../example/ttbar_analysis_pipeline.ipynb) —
-  full AGC notebook wired for hq (`USE_HQ=True`)
-- [`example/ttbar_analysis_pipeline_futures.ipynb`](../../example/ttbar_analysis_pipeline_futures.ipynb) —
-  the FuturesExecutor reference copy
-- [`example/coffea_hq_runner_smoke.py`](../../example/coffea_hq_runner_smoke.py) —
-  minimal `Runner` smoke (CountEvents, one file)
+In this repo:
+
+- [`example/coffea_hq_smoke.py`](../../example/coffea_hq_smoke.py) —
+  `CoffeaHQExecutor` smoke with fake items (no ROOT)
+- [`example/coffea_hq_ship_smoke.py`](../../example/coffea_hq_ship_smoke.py) —
+  shipping nested callables + local modules by value
+
+In the `agc-hq` repo (sibling checkout, e.g. `../agc-hq`), which installs hq
+as a package (`pip install -e ../hq`):
+
+- `agc_hq_vs_futures.py` — AGC ttbar subset, Futures vs hq, asserts
+  histograms match
+- `ttbar_analysis_pipeline.ipynb` — full AGC notebook wired for hq
+  (`USE_HQ=True`), plus a FuturesExecutor reference copy
+- `coffea_hq_runner_smoke.py` — minimal `Runner` smoke (CountEvents, one file)
 
 ## Related
 
