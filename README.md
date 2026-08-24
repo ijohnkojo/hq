@@ -107,9 +107,9 @@ executor = CoffeaHQExecutor(
 ```
 
 See [CoffeaHQExecutor](docs/architecture/coffea-executor.md) — including why
-`pickle_modules` matters — and
-[`example/agc_hq_vs_futures.py`](example/agc_hq_vs_futures.py) for a full
-AGC comparison against `FuturesExecutor`.
+`pickle_modules` matters. A full AGC ttbar pipeline that exercises hq
+end-to-end (and compares it against `FuturesExecutor`) lives in the separate
+`agc-hq` repo, which installs hq as a package (`pip install -e ../hq`).
 
 ## Documentation
 
