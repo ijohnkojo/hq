@@ -17,6 +17,7 @@ bun.lock
 *.crt
 
 # Local-only (not part of the project)
+docs/
 docs/stuff/
 docs/plans/
 graphify-out/
