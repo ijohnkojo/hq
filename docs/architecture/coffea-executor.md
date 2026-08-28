@@ -104,19 +104,24 @@ In this repo:
   `CoffeaHQExecutor` smoke with fake items (no ROOT)
 - [`example/coffea_hq_ship_smoke.py`](../../example/coffea_hq_ship_smoke.py) —
   shipping nested callables + local modules by value
+- [`example/histserv_hq_smoke.py`](../../example/histserv_hq_smoke.py) —
+  ship a `RemoteHist` through an hq task, fill on the worker, snapshot
 
 In the `agc-hq` repo (sibling checkout, e.g. `../agc-hq`), which installs hq
 as a package (`pip install -e ../hq`):
 
 - `agc_hq_vs_futures.py` — AGC ttbar subset, Futures vs hq, asserts
   histograms match
+- `agc_histserv_vs_futures.py` — same subset, Futures vs hq+histserv
 - `ttbar_analysis_pipeline.ipynb` — full AGC notebook wired for hq
-  (`USE_HQ=True`), plus a FuturesExecutor reference copy
+  (`USE_HQ=True`), plus a FuturesExecutor reference copy; `USE_HISTSERV`
+  streams fills to histserv when on
 - `coffea_hq_runner_smoke.py` — minimal `Runner` smoke (CountEvents, one file)
 
 ## Related
 
 - [Worker internals](worker.md) — why fresh interpreters need shipped code
 - [Results](results.md) — how accumulators come back
+- [HistServ](histserv.md) — optional remote histogram transport (workers fill, client snapshots)
 - [ADR 0005](../adr/0005-cloudpickle-by-value.md)
 - [Troubleshooting](../ops/troubleshooting.md) — instant-error tasks and friends

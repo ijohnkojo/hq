@@ -69,9 +69,14 @@ Nothing cleans this directory automatically — prune old queue subdirectories
 periodically (each run of `HQExecutor` uses a fresh UUID queue name, so old
 results are inert but accumulate).
 
+To skip shipping histograms altogether, use the optional histserv transport
+([histserv.md](histserv.md)): workers fill a remote histogram server and the
+client snapshots once. Tiny leftover results (`nevents`) still use this path.
+
 ## Related
 
 - [Task lifecycle](task-lifecycle.md) — what the status does carry
 - [Worker internals](worker.md) — the strip-and-write step
 - [ADR 0004](../adr/0004-results-on-shared-fs.md)
+- [HistServ](histserv.md) — optional remote histogram transport
 - [Configuration](../ops/configuration.md) — `HQ_RESULT_DIR`

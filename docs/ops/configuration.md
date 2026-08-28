@@ -24,6 +24,14 @@ Read once at startup by [`typescript/config.ts`](../../typescript/config.ts)
 |----------|---------|---------|
 | `HQ_RESULT_DIR` | `/tmp/hq-results` | Root of the shared result store; must be set (or defaulted identically) for the client **and** every worker. Results land at `{HQ_RESULT_DIR}/{queue}/{task_id}.pkl` |
 
+Optional histserv transport (not an hq env var — a gRPC service next to Redis):
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `histserv --port` | `50051` | Histogram server; workers fill, client snapshots. See [histserv.md](../architecture/histserv.md) |
+| notebook `USE_HISTSERV` | `False` | Off = pickled hists on the shared FS; on = remote fills |
+| notebook `HISTSERV_ADDRESS` | `localhost:50051` | gRPC address passed to `init_remote_hists` |
+
 ## Python constructor arguments
 
 ### `HQExecutor` ([`src/hq/executor.py`](../../src/hq/executor.py))
@@ -97,3 +105,4 @@ Overridable via environment when invoking the end-to-end smoke:
 - [Deployment guide](deployment.md)
 - [Troubleshooting](troubleshooting.md)
 - [CoffeaHQExecutor](../architecture/coffea-executor.md)
+- [HistServ](../architecture/histserv.md)

@@ -78,6 +78,19 @@ export HQ_RESULT_DIR=/tmp/hq-results     # default; use a shared mount across ma
 mkdir -p "$HQ_RESULT_DIR"
 ```
 
+### 4b. Histserv (optional)
+
+Only needed when using the remote histogram transport
+([histserv.md](../architecture/histserv.md)):
+
+```shell
+histserv --port 50051
+```
+
+Keep it on the same trusted network as Redis — the gRPC channel is not TLS.
+Workers need `histserv` installed in the same env as the client
+(`pip install histserv` or `pip install 'hq[histserv]'`).
+
 Set this for **both** the client process and every worker
 ([ADR 0004](../adr/0004-results-on-shared-fs.md)). Prune old queue
 subdirectories periodically — nothing cleans them automatically.

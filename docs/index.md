@@ -15,6 +15,7 @@ How the pieces work and talk to each other.
 | [Worker internals](architecture/worker.md) | Pull loop, one-subprocess-per-task via `exe.py`, stderr IPC contract, managed teardown |
 | [Results](architecture/results.md) | Shared-filesystem result transport: `HQ_RESULT_DIR`, `resultPath` pointer, `gather` semantics |
 | [CoffeaHQExecutor](architecture/coffea-executor.md) | Running `coffea.processor.Runner` on hq: `pickle_modules`, sizing, AGC benchmarks |
+| [HistServ](architecture/histserv.md) | Optional remote histogram transport: workers fill a gRPC hist server, client snapshots |
 
 ## Architecture Decision Records
 
@@ -49,6 +50,7 @@ Standing hq up and keeping it healthy.
 | [`example/simple/client_ex.py`](../example/simple/client_ex.py) | Minimal `HQExecutor`: submit, map, wait |
 | [`scripts/testrun.sh`](../scripts/testrun.sh) | One-command end-to-end smoke over HTTPS |
 | [`example/coffea_hq_smoke.py`](../example/coffea_hq_smoke.py) | `CoffeaHQExecutor` smoke with fake items (no ROOT) |
-| `agc-hq` repo (sibling checkout, e.g. `../agc-hq`) | Full AGC ttbar pipeline on hq: notebooks, `agc_hq_vs_futures.py` comparison, `Runner` smoke |
+| [`example/histserv_hq_smoke.py`](../example/histserv_hq_smoke.py) | Ship a histserv `RemoteHist` through an hq task |
+| `agc-hq` repo (sibling checkout, e.g. `../agc-hq`) | Full AGC ttbar pipeline on hq: notebooks, `agc_hq_vs_futures.py` / `agc_histserv_vs_futures.py` comparison, `Runner` smoke |
 
 

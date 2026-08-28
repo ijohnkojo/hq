@@ -111,13 +111,19 @@ See [CoffeaHQExecutor](docs/architecture/coffea-executor.md) — including why
 end-to-end (and compares it against `FuturesExecutor`) lives in the separate
 `agc-hq` repo, which installs hq as a package (`pip install -e ../hq`).
 
+Optional: stream histogram fills to
+[histserv](https://github.com/scikit-hep/histserv) instead of returning pickled
+hists over the shared filesystem — see
+[histserv.md](docs/architecture/histserv.md) (`pip install 'hq[histserv]'`,
+then `USE_HISTSERV=True` in the AGC notebook).
+
 ## Documentation
 
 Full index: [docs/index.md](docs/index.md).
 
 | Section | Contents |
 |---------|----------|
-| [Architecture](docs/architecture/overview.md) | System [overview](docs/architecture/overview.md), [task lifecycle](docs/architecture/task-lifecycle.md), [worker internals](docs/architecture/worker.md), [results transport](docs/architecture/results.md), [coffea executor](docs/architecture/coffea-executor.md) |
+| [Architecture](docs/architecture/overview.md) | System [overview](docs/architecture/overview.md), [task lifecycle](docs/architecture/task-lifecycle.md), [worker internals](docs/architecture/worker.md), [results transport](docs/architecture/results.md), [coffea executor](docs/architecture/coffea-executor.md), [histserv](docs/architecture/histserv.md) |
 | [ADRs](docs/index.md#architecture-decision-records) | Why pull-based, why an HTTP facade, TLS, shared-FS results, cloudpickle-by-value, subprocess-per-task, stderr IPC, worker teardown |
 | [Operations](docs/ops/deployment.md) | [Deployment](docs/ops/deployment.md) (systemd, health checks, facilities), [configuration reference](docs/ops/configuration.md), [troubleshooting](docs/ops/troubleshooting.md) |
 
