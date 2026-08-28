@@ -4,7 +4,7 @@ Instead of returning whole pickled histograms through the shared-filesystem
 result path, tasks stream pre-binned fills to a histserv gRPC server and the
 client snapshots the merged result once at the end.
 
-Typical flow (see docs/architecture/histserv.md):
+Typical flow (see https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/histserv.md):
 
     # client, once
     remote_hists = init_remote_hists(templates, address="localhost:50051")

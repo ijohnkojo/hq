@@ -6,27 +6,8 @@ HEP analysis (coffea) chunks, but generic at its core.
 Redis stores the work. A [Bun](https://bun.com) HTTP server is a thin facade
 over Redis. Python clients submit cloudpickled callables; Python workers fetch
 and run them, one subprocess per task. Results come back over a shared
-filesystem.
+filesystem or sent to the histserv server for histogramming.
 
-## Why pull-based?
-
-Contrary to dask-distributed-like systems, the server does **not** track a
-worker pool and does **not** push tasks. Workers connect to the HTTP server
-and fetch work continuously until nothing is left:
-
-- workers can join and leave freely (ideal for HTCondor slots) — nothing but
-  the server URL and a queue name is needed;
-- the server stays a stateless facade: no placement logic, no scheduler
-  bottleneck, much less networking chatter;
-- load balancing is emergent — whichever worker polls first gets the next
-  FIFO task.
-
-The tradeoff: task pickup latency is bounded by the poll interval (~1 s) and
-there is no locality-aware scheduling — irrelevant for multi-second analysis
-chunks. Full reasoning: [ADR 0001](docs/adr/0001-pull-based-workers.md).
-
-The HTTP server can be viewed as a very simplified message queue (like
-RabbitMQ).
 
 ## Quickstart
 
@@ -88,8 +69,9 @@ Clients and workers take a `verify` argument (forwarded to `requests`):
 `verify="cert.pem"` trusts that specific cert (dev), `verify=True` uses the
 system CA bundle (real certs), `verify=False` disables verification (insecure,
 dev only). Plain `http://` keeps working when TLS is not configured. Details:
-[ADR 0003](docs/adr/0003-tls-self-signed-certs.md) and the
-[deployment guide](docs/ops/deployment.md).
+[ADR 0003](https://github.com/ijohnkojo/hq_docs/blob/main/docs/adr/0003-tls-self-signed-certs.md)
+and the
+[deployment guide](https://github.com/ijohnkojo/hq_docs/blob/main/docs/ops/deployment.md).
 
 ## Running coffea on hq
 
@@ -106,33 +88,35 @@ executor = CoffeaHQExecutor(
 )
 ```
 
-See [CoffeaHQExecutor](docs/architecture/coffea-executor.md) — including why
-`pickle_modules` matters. A full AGC ttbar pipeline that exercises hq
-end-to-end (and compares it against `FuturesExecutor`) lives in the separate
-`agc-hq` repo, which installs hq as a package (`pip install -e ../hq`).
+See [CoffeaHQExecutor](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/coffea-executor.md)
+— including why `pickle_modules` matters. A full AGC ttbar pipeline that
+exercises hq end-to-end (and compares it against `FuturesExecutor`) lives in
+the separate `agc-hq` repo, which installs hq as a package
+(`pip install -e ../hq`).
 
 Optional: stream histogram fills to
 [histserv](https://github.com/scikit-hep/histserv) instead of returning pickled
 hists over the shared filesystem — see
-[histserv.md](docs/architecture/histserv.md) (`pip install 'hq[histserv]'`,
-then `USE_HISTSERV=True` in the AGC notebook).
+[histserv.md](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/histserv.md)
+(`pip install 'hq[histserv]'`, then `USE_HISTSERV=True` in the AGC notebook).
 
 ## Documentation
 
-Full index: [docs/index.md](docs/index.md).
+Full documentation lives in a separate repo:
+[ijohnkojo/hq_docs](https://github.com/ijohnkojo/hq_docs)
+([index](https://github.com/ijohnkojo/hq_docs/blob/main/docs/index.md)).
 
 | Section | Contents |
 |---------|----------|
-| [Architecture](docs/architecture/overview.md) | System [overview](docs/architecture/overview.md), [task lifecycle](docs/architecture/task-lifecycle.md), [worker internals](docs/architecture/worker.md), [results transport](docs/architecture/results.md), [coffea executor](docs/architecture/coffea-executor.md), [histserv](docs/architecture/histserv.md) |
-| [ADRs](docs/index.md#architecture-decision-records) | Why pull-based, why an HTTP facade, TLS, shared-FS results, cloudpickle-by-value, subprocess-per-task, stderr IPC, worker teardown |
-| [Operations](docs/ops/deployment.md) | [Deployment](docs/ops/deployment.md) (systemd, health checks, facilities), [configuration reference](docs/ops/configuration.md), [troubleshooting](docs/ops/troubleshooting.md) |
+| [Architecture](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/overview.md) | System [overview](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/overview.md), [task lifecycle](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/task-lifecycle.md), [worker internals](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/worker.md), [results transport](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/results.md), [coffea executor](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/coffea-executor.md), [histserv](https://github.com/ijohnkojo/hq_docs/blob/main/docs/architecture/histserv.md) |
+| [ADRs](https://github.com/ijohnkojo/hq_docs/blob/main/docs/index.md#architecture-decision-records) | Why pull-based, why an HTTP facade, TLS, shared-FS results, cloudpickle-by-value, subprocess-per-task, stderr IPC, worker teardown |
+| [Operations](https://github.com/ijohnkojo/hq_docs/blob/main/docs/ops/deployment.md) | [Deployment](https://github.com/ijohnkojo/hq_docs/blob/main/docs/ops/deployment.md) (systemd, health checks, facilities), [configuration reference](https://github.com/ijohnkojo/hq_docs/blob/main/docs/ops/configuration.md), [troubleshooting](https://github.com/ijohnkojo/hq_docs/blob/main/docs/ops/troubleshooting.md) |
 
 ## Repository layout
 
 | Path | Role |
 |------|------|
-| `src/hq/` | Python package: client, executor, worker, coffea integration |
+| `src/hq/` | Python package: client, executor, worker, coffea integration, histserv helpers |
 | `typescript/` | Bun queue server (routes, Redis state, TLS config) |
-| `example/` | Simple examples + AGC ttbar notebooks and comparison scripts |
+| `example/` | Simple examples + histserv smoke |
 | `scripts/testrun.sh` | End-to-end HTTPS smoke test |
-| `docs/` | Documentation ([index](docs/index.md)) and working notes |
